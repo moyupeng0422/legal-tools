@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Project-specific
+CLAUDE.local.md
+SKILL.md
+*.json
+!package.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
