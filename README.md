@@ -43,7 +43,7 @@
 | **人民法院案例库 MCP** | 连接 [rmfyalk.court.gov.cn](https://rmfyalk.court.gov.cn)，指导性/参考案例检索、详情、统计、导出 | CC-BY-NC | 需 Token，[详情](人民法院案例库MCP/README.md) |
 | **国家法律法规数据库 MCP** | 连接 [flk.npc.gov.cn](https://flk.npc.gov.cn)，法律法规搜索、命中法条、高级检索、导出 | CC-BY-NC | 无需认证，[详情](国家法律法规数据库MCP/README.md) |
 
-### Claude Code Skills
+### Skills
 
 | 工具 | 说明 | 许可证 | 备注 |
 |------|------|--------|------|
