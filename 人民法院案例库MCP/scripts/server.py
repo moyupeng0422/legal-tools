@@ -257,7 +257,7 @@ async def get_enum(params: EnumInput) -> str:
         return _handle_error(e)
 
 
-DEFAULT_EXPORT_DIR = r"D:\zhishiku\知识产权法律实务\数据库\司法案例数据库"
+DEFAULT_EXPORT_DIR = os.environ.get("EXPORT_DIR", "")
 
 
 @mcp.tool(

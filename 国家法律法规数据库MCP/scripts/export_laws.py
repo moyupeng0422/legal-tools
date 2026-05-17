@@ -10,9 +10,12 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from client import FlkClient
+from dotenv import load_dotenv
 from export_formatter import format_obsidian_law
 
-DEFAULT_OUTPUT_DIR = r"D:\zhishiku\知识产权法律实务\数据库\法律法规数据库"
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+DEFAULT_OUTPUT_DIR = os.environ.get("EXPORT_DIR", "")
 
 
 async def fetch_all_cases(

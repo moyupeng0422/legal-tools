@@ -20,7 +20,7 @@ from formatters import (
 
 mcp = FastMCP("flk_npc_mcp", host="127.0.0.1", port=18062)
 
-DEFAULT_EXPORT_DIR = r"D:\zhishiku\知识产权法律实务\数据库\法律法规数据库"
+DEFAULT_EXPORT_DIR = os.environ.get("EXPORT_DIR", "")
 
 
 def _handle_error(e: Exception) -> str:

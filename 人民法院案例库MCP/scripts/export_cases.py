@@ -19,7 +19,7 @@ from export_formatter import format_obsidian_case, classify_ip_type
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-DEFAULT_OUTPUT_DIR = r"D:\zhishiku\知识产权法律实务\数据库\司法案例数据库"
+DEFAULT_OUTPUT_DIR = os.environ.get("EXPORT_DIR", "")
 
 
 async def fetch_all_cases(
