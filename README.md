@@ -13,7 +13,7 @@
 
 | 微信号 | 微信公众号 |
 |--------|-----------|
-| ![微信号](assets/wechat-qr.png) | ![微信公众号](assets/wechat-mp-qr.jpg) |
+| <img src="assets/wechat-qr.png" width="200"> | <img src="assets/wechat-mp-qr.jpg" width="200"> |
 
 ## 相关项目
 
