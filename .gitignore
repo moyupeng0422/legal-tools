@@ -17,7 +17,9 @@ venv/
 
 # Project-specific
 CLAUDE.local.md
-SKILL.md
+# MCP 开发配置文件（不发布）
+人民法院案例库MCP/SKILL.md
+国家法律法规数据库MCP/SKILL.md
 *.json
 !package.json
 
