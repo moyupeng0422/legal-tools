@@ -586,7 +586,7 @@ tmux capture-pane -t claude-session -p -S -60
 # 2. R2a：一次性列出所有问题
 tmux load-buffer - <<'EOF'
 R2a 质询：
-1. 你建议用端口 22，但本地 Windows SSH 实际在 2222 端口。
+1. 你建议用端口 22，但本地 Windows SSH 实际在 <SSH端口> 端口。
    请确认你读的是 sshd_config 还是 ssh_config？
 2. 方案中 npm 包版本号 x.y.z，最新版是 x.y.z+1，
    建议升级的原因是什么？

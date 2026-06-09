@@ -11,13 +11,13 @@
 **完整流程**：
 ```
 1. Hermes 在云端写好素材/要求文件
-2. SCP 到 CC 本地：scp brief.md local-win:"C:/Users/HUAWEI/brief.md"
+2. SCP 到 CC 本地：scp brief.md <host-alias>:"C:/Users/用户名/brief.md"
 3. 启动 CC（六步法）→ 发短指令引导：
-   - "读取 C:\Users\HUAWEI\brief.md"
+   - "读取 C:\Users\用户名\brief.md"
    - "进入 D:\claude vscode\法律相关skill自研仓库\社媒写作"
    - "加载 SKILL.md，用 /style-write Full Mode"
 4. CC 自主加载 STYLE.md + 参考资料 → 写入本地 draft.md
-5. Hermes SCP 拉回：scp local-win:"C:/Users/HUAWEI/draft.md" /tmp/
+5. Hermes SCP 拉回：scp <host-alias>:"C:/Users/用户名/draft.md" /tmp/
 6. Hermes 独立审查 → 发修改意见回 CC 或给用户
 ```
 

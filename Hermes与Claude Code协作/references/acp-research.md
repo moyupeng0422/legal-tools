@@ -72,7 +72,7 @@ Hermes(云端) ──SSH pipe──→ claude-agent-acp (Windows)
 #### 3.4 Hermes 侧集成
 
 Hermes 的 `delegate_task` 已支持 `acp_command`（如 `copilot --acp --stdio`），但目前仅限本地 spawn。远程 ACP 需：
-- 通过 SSH 管道启动：`ssh local-win "claude-agent-acp"`
+- 通过 SSH 管道启动：`ssh <host-alias> "claude-agent-acp"`
 - 或等待 Hermes 实现 GitHub Issue [#689](https://github.com/NousResearch/hermes-agent/issues/689)（Remote Agent Connection）
 
 ### 4. tmux 优化（渐进改进，不换底层）
@@ -172,7 +172,7 @@ CC 阅读了 claude-agent-acp 源码（`runAcp` 函数），确认协议细节�
 import subprocess, json
 
 proc = subprocess.Popen(
-    ["ssh", "local-win", "claude-agent-acp"],
+    ["ssh", "<host-alias>", "claude-agent-acp"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE
@@ -223,7 +223,7 @@ CC 在讨论中提出了 5 个关键设计决策，部分已定论：
 | B: Windows SSH → 云端 | CC 所在 Windows 主动维持到云端的 SSH | 需要 Windows 端常驻 SSH 进程 |
 | C: 双向 SSH 隧道 | 类似现有 dashboard 的 -L 转发 | 可复用已有模式 |
 
-**倾向**：方案 A — `ssh local-win "claude-agent-acp"` 建立 stdio 管道，最简且方向与 tmux 一致。
+**倾向**：方案 A — `ssh <host-alias> "claude-agent-acp"` 建立 stdio 管道，最简且方向与 tmux 一致。
 
 ### #2 协议层实现方式
 
@@ -311,7 +311,7 @@ Hermes 侧 Python 脚本 `~/.hermes/scripts/acp_test.py` 测试结果：**全链
 ### 远程命令
 
 ```bash
-ssh local-win "set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
+ssh <host-alias> "set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
 ```
 
 ### 测试结果

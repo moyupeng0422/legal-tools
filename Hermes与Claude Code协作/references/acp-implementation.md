@@ -21,7 +21,7 @@
 
 ### 错误 3：cwd 平台路径
 
-- **CC 写了**：`cwd="/home/ubuntu"`（Linux 路径）
+- **CC 写了**：`cwd="/home/<云端用户>"`（Linux 路径）
 - **症状**：`[-32603] Internal error`
 - **根因**：ACP 进程运行在 Windows 上，不接受 Linux 文件路径
 - **修正**：默认值改为 `cwd="C:\\"`，接受 Windows 路径

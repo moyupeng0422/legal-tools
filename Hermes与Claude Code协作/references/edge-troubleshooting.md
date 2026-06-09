@@ -25,7 +25,7 @@ Edge 通常不在 Windows PATH 中。直接用 `msedge` 会报命令未找到。
 
 ```
 # ❌ 错误
-BROWSER_DATA_DIR = "D:/claude vscode/法律相关skill自研仓库/login-helper/browser_data"
+BROWSER_DATA_DIR = "<项目目录>/法律相关skill自研仓库/login-helper/browser_data"
 
 # ✅ 正确
 BROWSER_DATA_DIR = os.path.join(os.environ["TEMP"], "login-helper-browser_data")

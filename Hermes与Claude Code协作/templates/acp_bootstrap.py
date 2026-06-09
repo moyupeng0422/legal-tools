@@ -15,7 +15,7 @@
 import subprocess, json, threading, time, sys, os
 
 # ============ 配置 ============
-SSH_TARGET = "local-win"
+SSH_TARGET = "<host-alias>"
 API_KEY = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ANTHROPIC_API_KEY", "")
 BASE_URL = "https://open.bigmodel.cn/api/anthropic"
 MODEL = "glm-5-turbo"

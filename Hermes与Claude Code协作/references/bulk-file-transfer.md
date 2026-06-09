@@ -52,7 +52,7 @@ ssh -p <port> user@windows \
 
 ```bash
 # 云端执行：从 Windows 拉取已打包的 tar.gz 到云端解压
-ssh local-win 'powershell -Command "[Console]::OpenStandardOutput().Write([System.IO.File]::ReadAllBytes(\"C:\\Users\\HUAWEI\\AppData\\Local\\Temp\\package.tar.gz\"),0,[System.IO.File]::ReadAllBytes(\"C:\\Users\\HUAWEI\\AppData\\Local\\Temp\\package.tar.gz\").Length)"' | tar -xzf - -C /home/ubuntu/target/
+ssh <host-alias> 'powershell -Command "[Console]::OpenStandardOutput().Write([System.IO.File]::ReadAllBytes(\"C:\\Users\\用户名\\AppData\\Local\\Temp\\package.tar.gz\"),0,[System.IO.File]::ReadAllBytes(\"C:\\Users\\用户名\\AppData\\Local\\Temp\\package.tar.gz\").Length)"' | tar -xzf - -C /home/<云端用户>/target/
 ```
 
 **原理**：PowerShell 将文件以原始字节写入 stdout，通过 SSH pipe 传到云端，tar 从 stdin 解压。不依赖 Windows 端 tar 命令。
@@ -65,7 +65,7 @@ ssh local-win 'powershell -Command "[Console]::OpenStandardOutput().Write([Syste
 **注意**：
 - 文件路径必须用 `\"` 转义（PowerShell 字符串内嵌双引号）
 - Windows `%TEMP%` 实际映射到 `C:\Users\<用户>\AppData\Local\Temp\`，不要用 `/tmp/`（Windows 上可能映射到 `C:\tmp\` 且不存在）
-- 需要先确认 SSH 从云端到 Windows 通（`ssh local-win echo OK`）
+- 需要先确认 SSH 从云端到 Windows 通（`ssh <host-alias> echo OK`）
 
 ---
 
@@ -97,10 +97,10 @@ cd /tmp && python3 -m http.server 18888 --bind 0.0.0.0
 # === Windows（CC侧） ===
 
 # 3. CC 通过 curl 下载（从 tmux session 内执行）
-curl -s http://100.90.24.4:18888/package.tar.gz -o C:\Users\HUAWEI\package.tar.gz
+curl -s http://<服务器IP>:<临时端口>/package.tar.gz -o C:\Users\用户名\package.tar.gz
 
 # 4. 文件到达后解压分析
-tar xzf "C:/Users/HUAWEI/package.tar.gz" -C /tmp/extract
+tar xzf "C:/Users/用户名/package.tar.gz" -C /tmp/extract
 ```
 
 ### 说明
@@ -116,7 +116,7 @@ tar xzf "C:/Users/HUAWEI/package.tar.gz" -C /tmp/extract
 
 SCP 在以下场景会失败：
 
-1. **路径空格**：`scp "D:/claude vscode/target/*" user@host:dest/` — 通配符 `*` 被本地 shell 展开后路径含空格，SCP 无法解析
+1. **路径空格**：`scp "<项目目录>/target/*" user@host:dest/` — 通配符 `*` 被本地 shell 展开后路径含空格，SCP 无法解析
 2. **中断无原子性**：传输中途失败导致部分文件到达、部分丢失，状态不确定
 3. **目录必须全路径存在**：SCP 要求目标子目录结构精确存在，中途创建失败则整批中断
 4. **Tailscale relay 下超时**：延迟~350ms 时大文件在 timeout 内无法完成

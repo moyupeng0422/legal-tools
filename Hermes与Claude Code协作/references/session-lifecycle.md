@@ -235,8 +235,8 @@ tmux send-keys -t claude-session 'claude' Enter
 cat > /tmp/cc_msg.txt << 'EOF'
 ...长消息内容...
 EOF
-scp /tmp/cc_msg.txt local-win:"/Users/HUAWEI/cc_msg.txt"
-tmux send-keys -t claude-session '读取 C:\\Users\\HUAWEI\\cc_msg.txt，...' Enter
+scp /tmp/cc_msg.txt <host-alias>:"/Users/用户名/cc_msg.txt"
+tmux send-keys -t claude-session '读取 C:\\Users\\用户名\\cc_msg.txt，...' Enter
 # 短 send-keys 不受 accept edits 影响，可用于触发读文件指令
 ```
 
@@ -334,7 +334,7 @@ Ready to submit your answers?
 
 ```bash
 # 从 Windows 传到云端（在 tmux / CC 中执行）
-cd "D:/claude vscode" && tar czf - health-management-skill | ssh -p 2222 ubuntu@100.90.24.4 "cd /home/ubuntu/.hermes/profiles/family/skills/family/health-management && tar xzf -"
+cd "<项目目录>" && tar czf - health-management-skill | ssh -p <SSH端口> ubuntu@<服务器IP> "cd /home/<云端用户>/.hermes/profiles/family/skills/family/health-management && tar xzf -"
 ```
 
 **优势**：
@@ -351,7 +351,7 @@ cd /dest/path && mv subdir/* . && rmdir subdir
 
 ```bash
 # 可能失败——空格导致路径解析问题
-scp -P 2222 -r "HUAWEI@host:D:\\claude vscode\\project" .
+scp -P <SSH端口> -r "用户名@host:<项目目录>\\project" .
 ```
 
 SCP 在以下场景易出错：源路径含空格、嵌套目录层数深、目标目录不存在。`tar + SSH` 管道是更稳定的替代方案。\n\n

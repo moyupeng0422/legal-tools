@@ -15,7 +15,7 @@ tmux capture-pane -t claude-session -p | tail -1
 # 如果看到 ❯ 或 ⏸ → CC（正常运行）
 
 # 方法2：直接测SSH
-ssh -o ConnectTimeout=10 -o BatchMode=yes local-win "echo SSH_OK"
+ssh -o ConnectTimeout=10 -o BatchMode=yes <host-alias> "echo SSH_OK"
 ```
 
 ### 常见误判
@@ -35,7 +35,7 @@ capture-pane 输出:
 
 ### Step 1：确认 SSH 可用
 ```bash
-ssh -o ConnectTimeout=10 local-win "echo SSH_OK"
+ssh -o ConnectTimeout=10 <host-alias> "echo SSH_OK"
 # 输出 SSH_OK → 继续
 # 超时/refused → 走 ssh-diagnostics.md 诊断
 ```
@@ -44,11 +44,11 @@ ssh -o ConnectTimeout=10 local-win "echo SSH_OK"
 ```bash
 tmux send-keys -t claude-session C-c C-c   # 清理残留
 sleep 1
-tmux send-keys -t claude-session 'ssh local-win' Enter
+tmux send-keys -t claude-session 'ssh <host-alias>' Enter
 sleep 5
 # 验证是否进入 Windows
 tmux capture-pane -t claude-session -p | tail -1
-# 应看到: huawei@LAPTOP-OPEVKB7J ...>
+# 应看到: <用户>@<主机名> ...>
 ```
 
 ### Step 3：恢复 CC

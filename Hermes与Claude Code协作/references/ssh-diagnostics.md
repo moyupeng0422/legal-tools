@@ -5,12 +5,12 @@ Hermes 与本地 Windows 之间的 SSH 不通时的系统化诊断流程。
 ## 架构
 
 ```
-Hermes（云端）── SSH ──→ Windows（HUAWEI@100.107.207.104:2222）
+Hermes（云端）── SSH ──→ Windows（用户名@<服务器IP>:<SSH端口>）
                      ↑
-                 ~/.ssh/config → local-win
+                 ~/.ssh/config → <host-alias>
 ```
 
-> **SSH 配置：** `Host local-win` / `HostName 100.107.207.104`（Tailscale IP）/ `Port 2222` / `User HUAWEI`
+> **SSH 配置：** `Host <host-alias>` / `HostName <服务器IP>`（Tailscale IP）/ `Port <SSH端口>` / `User 用户名`
 
 ## 诊断决策树
 
@@ -19,25 +19,25 @@ SSH 连接失败
     │
     ├── "Could not resolve hostname"
     │    → 检查 ~/.ssh/config 中 Host 别名是否存在
-    │    → cat ~/.ssh/config | grep -A4 local-win
+    │    → cat ~/.ssh/config | grep -A4 <host-alias>
     │
     ├── "Connection refused"
     │    → sshd 未运行或端口不对
     │    → Windows 上检查：
     │       Get-Service sshd                    # 是否 Running
-    │       netstat -an | findstr :2222          # 是否 LISTENING
+    │       netstat -an | findstr :<SSH端口>          # 是否 LISTENING
     │    → 修复：Start-Service sshd
     │
     └── "Connection timed out" / Operation timed out
          │
          ├── Step 1: 区分端口状态
-         │    nc -zv -w10 100.107.207.104 2222
+         │    nc -zv -w10 <服务器IP> <SSH端口>
          │    ├── "refused" → sshd 挂了（回退到上方 refused 流程）
          │    └── "timed out" → TCP 握手失败，继续 Step 2
          │
          ├── Step 2: 检查 Tailscale 连通性
-         │    tailscale status | grep 100.107.207
-         │    tailscale ping -c 3 100.107.207.104
+         │    tailscale status | grep <IP前缀>
+         │    tailscale ping -c 3 <服务器IP>
          │    │
          │    ├── ping 不通 → Tailscale 数据面故障
          │    │    → 让用户在 Windows 上重启 Tailscale
@@ -46,7 +46,7 @@ SSH 连接失败
          │    │
          │    └── ping 通但延迟高（如 ~4.7s relay）
          │         → 走中继而非直连（derp），SSH 超时需加大：
-         │            ssh -o ConnectTimeout=30 local-win "..."
+         │            ssh -o ConnectTimeout=30 <host-alias> "..."
          │         仍超时 → Step 3
          │
          └── Step 3: 检查 Windows 防火墙
@@ -54,7 +54,7 @@ SSH 连接失败
               → Windows 上检查：
                  Get-NetFirewallRule -DisplayName "*SSH*" | ft DisplayName, Enabled, Direction, Action
               → 如果无入站允许规则，添加：
-                 New-NetFirewallRule -DisplayName "SSH 2222" -Direction Inbound -Port 2222 -Protocol TCP -Action Allow
+                 New-NetFirewallRule -DisplayName "SSH <SSH端口>" -Direction Inbound -Port <SSH端口> -Protocol TCP -Action Allow
               → 或者临时禁用防火墙测试：Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
                  （⚠️ 仅测试用，测试完需恢复）
 ```
@@ -79,7 +79,7 @@ tailscale status 中的连接模式：
 
 ```bash
 # 用户本地 VSCode 终端执行
-ssh ubuntu@100.90.24.4 -p 2222    # 云端 Tailscale IP，端口 2222
+ssh ubuntu@<服务器IP> -p <SSH端口>    # 云端 Tailscale IP，端口 <SSH端口>
 tmux attach -t claude-session      # 进入后执行，实时看到 CC
 ```
 
@@ -93,14 +93,14 @@ tmux attach -t claude-session      # 进入后执行，实时看到 CC
 
 ```bash
 # 云端（Hermes）
-tailscale status | grep 100.107.207         # 连接状态和模式
-tailscale ping 100.107.207.104              # Tailscale 层 ping
-nc -zv -w10 100.107.207.104 2222            # 端口级别测试
-ssh -v -o ConnectTimeout=10 local-win "echo OK"  # 详细 SSH 调试日志
+tailscale status | grep <IP前缀>         # 连接状态和模式
+tailscale ping <服务器IP>              # Tailscale 层 ping
+nc -zv -w10 <服务器IP> <SSH端口>            # 端口级别测试
+ssh -v -o ConnectTimeout=10 <host-alias> "echo OK"  # 详细 SSH 调试日志
 
 # Windows 端（用户手动执行）
 Get-Service sshd                             # SSH 服务状态
-netstat -an | findstr :2222                  # 端口监听状态
+netstat -an | findstr :<SSH端口>                  # 端口监听状态
 Get-NetFirewallRule -DisplayName "*SSH*"    # 防火墙规则
 ```
 
