@@ -47,8 +47,8 @@
 
 | 工具 | 说明 | 许可证 | 备注 |
 |------|------|--------|------|
-| **法律问题研究分析** | 整合两大 MCP 多源法律检索与综合分析，Quick/Full 双模式，输出 Obsidian/DOCX 研究报告 | MIT | [详情](法律问题研究分析/) |
-| **Hermes与Claude Code协作** | 双 AI Agent 结构化协作规范（SSH+tmux），含 CC 端协议、监控辩论、错误恢复等 22 个参考文档 | MIT | [详情](Hermes与Claude Code协作/) |
+| **法律问题研究分析** | 整合两大 MCP 多源法律检索与综合分析，Quick/Full 双模式，输出 Obsidian/DOCX 研究报告 | MIT | [详情](%E6%B3%95%E5%BE%8B%E9%97%AE%E9%A2%98%E7%A0%94%E7%A9%B6%E5%88%86%E6%9E%90/) |
+| **Hermes与Claude Code协作** | 双 AI Agent 结构化协作规范（SSH+tmux），含 CC 端协议、监控辩论、错误恢复等 22 个参考文档 | MIT | [详情](Hermes%E4%B8%8EClaude%20Code%E5%8D%8F%E4%BD%9C/) |
 
 ### 相关项目
 
