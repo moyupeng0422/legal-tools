@@ -1,0 +1,16 @@
+# 环境变量（含敏感信息）
+.env
+
+# 运行时文件（协作中产生）
+workbuddy/hermes_collab/conv_*.md
+workbuddy/hermes_collab/out_*.md
+workbuddy/hermes_collab/debate_*.md
+workbuddy/hermes_collab/task_IN_*
+workbuddy/hermes_collab/task_OUT_*
+
+# 排除 done/ 中的运行时归档
+workbuddy/hermes_collab/done/conv_*.md
+
+# OS
+.DS_Store
+Thumbs.db
