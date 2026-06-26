@@ -11,12 +11,15 @@
 ## 审计流程
 
 ```
-1. 对照 Verification Checklist 逐条反查近 N 次 CC 交互
+1. 对照 Verification Checklist 逐条反查近 N 次 CC 交互（Hermes 侧观察）
 2. 每条标注：✅ 遵守 / ⚠️ 可疑 / ❌ 违规
-3. 对 ❌/⚠️ 项归类为可操作问题
-4. 与 CC 进入辩论 R1→R2→R3 讨论改进
-5. 输出修正方案，双方同步更新规则文件
-6. 本次审计发现写入 skill 的 pitfall 列表（反面教材）
+3. 让 CC 自查同一时段的合规情况（必做，不可跳过）
+   - 原因：capture-pane 滚动截断可能导致 Hermes 漏检，CC 可能输出了标记但 Hermes 没看到
+   - 方法：发讨论指令请 CC 回忆并自查，与 Hermes 侧观察对照
+4. 对照步骤 1-3 的差异点，归类为可操作问题
+5. 与 CC 进入辩论 R1→R2→R3 讨论改进（质疑 CC 借口，独立分析后发回）
+6. 输出修正方案，双方同步更新规则文件
+7. 本次审计发现写入 skill 的 references/self-audit-findings.md
 ```
 
 ## 审计维度

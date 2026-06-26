@@ -1,13 +1,13 @@
 # CC 侧协作 Context 文件
 
-部署路径：`D:\claude vscode\.claude\rules\hermes-collab.md`
+部署路径：`<windows-project-root>\.claude\rules\hermes-collab.md`
 生命周期：一次性部署，CC 启动时自动加载，通过激活标记按需启用
 
 ## 部署步骤
 
 ### 1. 放置文件
 
-将下文完整内容写入 `D:\claude vscode\.claude\rules\hermes-collab.md`。
+将下文完整内容写入 `<windows-project-root>\.claude\rules\hermes-collab.md`。
 
 ### 2. 注册到 CLAUDE.md（推荐）
 
@@ -34,7 +34,7 @@
 
 > **激活条件**：仅当对话中出现 `<!-- HERMES-ACTIVATE -->` 或 `[HERMES:task-xxx]` 标记时启用以下规则。
 > 未检测到标记时，忽略本文件全部内容，正常执行人类指令。
-> 部署路径：`D:\claude vscode\.claude\rules\hermes-collab.md`（一次性放置，自动加载）
+> 部署路径：`<windows-project-root>\.claude\rules\hermes-collab.md`（一次性放置，自动加载）
 
 ---
 
@@ -188,3 +188,10 @@ Hermes 可能发起事实辩论（R1/R2/R3），标记规则：
 - 连续 3 次提醒后被忽略 → 停止提醒，等待人工介入
 - 如果当前 session 未检测到任何 HERMES-ACTIVATE 标记，本文件的所有规则均不生效，正常执行人类指令
 ```
+
+> ⚠️ **已知合规缺口（2026-06-09 审计，06-10 用户纠正后更新）**：
+> 1. ~~CC 端几乎全部零实操~~ → **纠正：遵守率不稳定，非零**。多步骤明确 task_id 任务遵守较好（如 wechat-fix 任务 CC 输出了完整 DONE+STATUS+TASK_MAP），短对话/讨论类任务容易跳过。根因不变：CC 把协议视为"可选附加"而非"基础约束"
+> 2. "激活条件"中的依赖关系有误导性——CC context 文件是 session 级自动加载的，不依赖激活标记。CC 以"协议未触发"作为不遵守的借口不成立
+> 3. 降级规则（连续 3 次不遵守→停止提醒）惩罚提醒者（Hermes）而非违规者（CC），设计逻辑有缺陷
+> 4. DONE 模板三层嵌套（STATUS+CHECKLIST+TASK_MAP）认知负担过重，LLM 执行方难以持续遵守
+> 5. 详见 `references/self-audit-findings.md` 的"2026-06-09 自查 — CC 协议结构化标记合规审计"章节

@@ -2,6 +2,48 @@
 
 > 2026-06-02 讨论：用户提出当前 tmux 模拟终端交互方式效率低下（send-keys 截断、capture-pane 轮询、弹窗盲按），探讨 Agent-to-Agent 原生协议替代方案。
 
+## Table of Contents
+
+- [现状痛点](#现状痛点)
+- [探索路径](#探索路径)
+  - [1. Headless Mode (`claude -p`)](#1-headless-mode-claude-p)
+  - [2. Claude Code 原生 ACP（等待官方）](#2-claude-code-原生-acp（等待官方）)
+  - [3. 自建 ACP 适配器（最有希望）](#3-自建-acp-适配器（最有希望）)
+  - [4. tmux 优化（渐进改进，不换底层）](#4-tmux-优化（渐进改进，不换底层）)
+- [✅ 前置条件验证（2026-06-02 已确认）](#前置条件验证（2026-06-02-已确认）)
+- [🏆 ACP 适配器安装与验证（2026-06-02 已完成）](#acp-适配器安装与验证（2026-06-02-已完成）)
+  - [官方 ACP 适配器](#官方-acp-适配器)
+  - [启动方式](#启动方式)
+  - [协议特征](#协议特征)
+  - [ACP Initialize 握手](#acp-initialize-握手)
+  - [已验证的响应能力](#已验证的响应能力)
+  - [协议格式确认（2026-06-02 CC 源码分析）](#协议格式确认（2026-06-02-cc-源码分析）)
+  - [Hermes 侧 Python 验证脚本](#hermes-侧-python-验证脚本)
+  - [关键踩坑](#关键踩坑)
+- [下一步行动](#下一步行动)
+- [架构设计讨论（2026-06-02 Hermes × CC）](#架构设计讨论（2026-06-02-hermes-cc）)
+  - [#1 SSH Pipe 数据流方向](#1-ssh-pipe-数据流方向)
+  - [#2 协议层实现方式](#2-协议层实现方式)
+  - [#3 会话管理与 tmux 共存 ✅ 已定论](#3-会话管理与-tmux-共存-已定论)
+  - [#4 CC 角色定位 ✅ 已定论](#4-cc-角色定位-已定论)
+  - [#5 错误处理与重连](#5-错误处理与重连)
+  - [整体架构](#整体架构)
+- [参考资料](#参考资料)
+- [⚠️ ACP 能力边界（2026-06-02 最终结论，次日修正）](#acp-能力边界（2026-06-02-最终结论，次日修正）)
+- [🎉 E2E 端到端验证（2026-06-02）](#e2e-端到端验证（2026-06-02）)
+  - [远程命令](#远程命令)
+  - [测试结果](#测试结果)
+  - [CC 脚本的三个错误（已修正）](#cc-脚本的三个错误（已修正）)
+- [📡 P0 参数结构探明（2026-06-02 Hermes 侧探测）](#p0-参数结构探明（2026-06-02-hermes-侧探测）)
+  - [session/new](#sessionnew)
+  - [session/prompt](#sessionprompt)
+- [🏗️ P1 ACP Client 实现（2026-06-02）](#p1-acp-client-实现（2026-06-02）)
+  - [模块结构](#模块结构)
+  - [核心 API](#核心-api)
+  - [CC P1 代码中的两个关键错误（已修正）](#cc-p1-代码中的两个关键错误（已修正）)
+
+---
+
 ## 现状痛点
 
 | 痛点 | 根因 |
@@ -72,7 +114,7 @@ Hermes(云端) ──SSH pipe──→ claude-agent-acp (Windows)
 #### 3.4 Hermes 侧集成
 
 Hermes 的 `delegate_task` 已支持 `acp_command`（如 `copilot --acp --stdio`），但目前仅限本地 spawn。远程 ACP 需：
-- 通过 SSH 管道启动：`ssh <host-alias> "claude-agent-acp"`
+- 通过 SSH 管道启动：`ssh <ssh-alias> "claude-agent-acp"`
 - 或等待 Hermes 实现 GitHub Issue [#689](https://github.com/NousResearch/hermes-agent/issues/689)（Remote Agent Connection）
 
 ### 4. tmux 优化（渐进改进，不换底层）
@@ -91,7 +133,7 @@ Hermes 的 `delegate_task` 已支持 `acp_command`（如 `copilot --acp --stdio`
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
-| `ANTHROPIC_BASE_URL` | `https://open.bigmodel.cn/api/anthropic` | 智谱提供 **Anthropic 协议兼容** 端点 |
+| `ANTHROPIC_BASE_URL` | `<api-endpoint-anthropic>` | 智谱提供 **Anthropic 协议兼容** 端点 |
 | `ANTHROPIC_AUTH_TOKEN` | 智谱 API Key | 认证凭据 |
 | `ANTHROPIC_MODEL` | `glm-5-turbo` | 默认模型 |
 | 配置位置 | `~/.claude/settings.json` → `env` 字段 | CC 启动时注入，非系统环境变量 |
@@ -112,7 +154,7 @@ npm install -g @agentclientprotocol/claude-agent-acp
 ### 启动方式
 
 ```bash
-set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic
+set ANTHROPIC_BASE_URL=<api-endpoint-anthropic>
 set ANTHROPIC_AUTH_TOKEN=<智谱API Key>
 claude-agent-acp
 ```
@@ -172,7 +214,7 @@ CC 阅读了 claude-agent-acp 源码（`runAcp` 函数），确认协议细节�
 import subprocess, json
 
 proc = subprocess.Popen(
-    ["ssh", "<host-alias>", "claude-agent-acp"],
+    ["ssh", "<ssh-alias>", "claude-agent-acp"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE
@@ -223,7 +265,7 @@ CC 在讨论中提出了 5 个关键设计决策，部分已定论：
 | B: Windows SSH → 云端 | CC 所在 Windows 主动维持到云端的 SSH | 需要 Windows 端常驻 SSH 进程 |
 | C: 双向 SSH 隧道 | 类似现有 dashboard 的 -L 转发 | 可复用已有模式 |
 
-**倾向**：方案 A — `ssh <host-alias> "claude-agent-acp"` 建立 stdio 管道，最简且方向与 tmux 一致。
+**倾向**：方案 A — `ssh <ssh-alias> "claude-agent-acp"` 建立 stdio 管道，最简且方向与 tmux 一致。
 
 ### #2 协议层实现方式
 
@@ -311,7 +353,7 @@ Hermes 侧 Python 脚本 `~/.hermes/scripts/acp_test.py` 测试结果：**全链
 ### 远程命令
 
 ```bash
-ssh <host-alias> "set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
+ssh <ssh-alias> "set ANTHROPIC_BASE_URL=<api-endpoint-anthropic> && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
 ```
 
 ### 测试结果

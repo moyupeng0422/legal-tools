@@ -21,7 +21,7 @@
 
 ### 错误 3：cwd 平台路径
 
-- **CC 写了**：`cwd="/home/<云端用户>"`（Linux 路径）
+- **CC 写了**：`cwd="<cloud-home>"`（Linux 路径）
 - **症状**：`[-32603] Internal error`
 - **根因**：ACP 进程运行在 Windows 上，不接受 Linux 文件路径
 - **修正**：默认值改为 `cwd="C:\\"`，接受 Windows 路径
@@ -91,7 +91,7 @@ result = session.prompt("用一句话介绍中国专利法的基本框架")
 通过 SSH 远程命令注入（cmd.exe `set` 语法）：
 
 ```
-set ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic
+set ANTHROPIC_BASE_URL=<api-endpoint-anthropic>
 set ANTHROPIC_AUTH_TOKEN=<key>
 set ANTHROPIC_MODEL=glm-5-turbo
 set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo

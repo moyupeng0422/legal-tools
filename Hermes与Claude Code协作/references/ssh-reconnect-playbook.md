@@ -15,7 +15,7 @@ tmux capture-pane -t claude-session -p | tail -1
 # 如果看到 ❯ 或 ⏸ → CC（正常运行）
 
 # 方法2：直接测SSH
-ssh -o ConnectTimeout=10 -o BatchMode=yes <host-alias> "echo SSH_OK"
+ssh -o ConnectTimeout=10 -o BatchMode=yes <ssh-alias> "echo SSH_OK"
 ```
 
 ### 常见误判
@@ -35,7 +35,7 @@ capture-pane 输出:
 
 ### Step 1：确认 SSH 可用
 ```bash
-ssh -o ConnectTimeout=10 <host-alias> "echo SSH_OK"
+ssh -o ConnectTimeout=10 <ssh-alias> "echo SSH_OK"
 # 输出 SSH_OK → 继续
 # 超时/refused → 走 ssh-diagnostics.md 诊断
 ```
@@ -44,24 +44,27 @@ ssh -o ConnectTimeout=10 <host-alias> "echo SSH_OK"
 ```bash
 tmux send-keys -t claude-session C-c C-c   # 清理残留
 sleep 1
-tmux send-keys -t claude-session 'ssh <host-alias>' Enter
+tmux send-keys -t claude-session 'ssh <ssh-alias>' Enter
 sleep 5
 # 验证是否进入 Windows
 tmux capture-pane -t claude-session -p | tail -1
-# 应看到: <用户>@<主机名> ...>
+# 应看到: huawei@LAPTOP-OPEVKB7J ...>
 ```
 
 ### Step 3：恢复 CC
 ```bash
-tmux send-keys -t claude-session 'd:' Enter
-sleep 1
-tmux send-keys -t claude-session 'cd "D:\claude vscode"' Enter
-sleep 1
-tmux send-keys -t claude-session 'claude --continue' Enter
-# 验证 CC 启动
+# 方式A（推荐·恢复旧对话）：
+tmux send-keys -t claude-session 'claude --model glm-5-turbo --resume' Enter
+sleep 10
+# CC 会显示会话选择列表，用方向键选择目标会话后 Enter
+tmux send-keys -t claude-session Down Enter   # 选第二个会话（按需调整）
+
+# 方式B（新对话）：
+tmux send-keys -t claude-session 'claude --model glm-5-turbo' Enter
 sleep 8
-tmux capture-pane -t claude-session -p | tail -3
-# 应看到: ⏸ plan mode on 或 ❯ 提示符
+# 验证 CC 启动（应看到提示符）
+tmux send-keys -t claude-session '<!-- HERMES-ACTIVATE -->' Enter
+tmux send-keys -t claude-session '/rename Hermes:<任务名>' Enter
 ```
 
 ### Step 4：激活协作协议

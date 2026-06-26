@@ -2,6 +2,29 @@
 
 会话的创建、启动、弹窗处理、任务切换、消息发送与维护。
 
+## Table of Contents
+
+- [Session 创建与启动](#session-创建与启动)
+- [弹窗处理](#弹窗处理)
+  - [弹窗 1：Workspace Trust（首次进入项目目录）](#弹窗-1：workspace-trust（首次进入项目目录）)
+  - [弹窗 2：工具权限提示](#弹窗-2：工具权限提示)
+  - [预授权配置](#预授权配置)
+- [任务命名与切换](#任务命名与切换)
+  - [Resume Session 选择 TUI 界面](#resume-session-选择-tui-界面)
+- [发送长消息（paste-buffer）](#发送长消息（paste-buffer）)
+- [发送前检查 CC 状态](#发送前检查-cc-状态)
+  - [发送后 ACK 验证（v2.1）](#发送后-ack-验证（v21）)
+  - [accept edits 专项处理](#accept-edits-专项处理)
+  - [Plan Mode Interview 表单](#plan-mode-interview-表单)
+  - [Plan Mode Multi-Step Interview（多步骤表单）](#plan-mode-multi-step-interview（多步骤表单）)
+- [跨平台文件传输](#跨平台文件传输)
+  - [推荐：tar + SSH 管道（可靠处理含空格路径）](#推荐：tar-ssh-管道（可靠处理含空格路径）)
+  - [避免：SCP 含空格路径](#避免：scp-含空格路径)
+- [新任务 vs 进入现有对话（铁律）](#新任务-vs-进入现有对话（铁律）)
+- [端到端示例：新任务启动](#端到端示例：新任务启动)
+
+---
+
 ## Session 创建与启动
 
 ```bash
@@ -129,7 +152,8 @@ Resume Session
 - 直接按 `Enter` 选中高亮项（会话名前有 `⌕` 标记即为选中）
 - 如果 Enter 无效，尝试 `Escape` 取消 → 回到 bash 提示符 → 再用 `claude --resume <会话ID>` 指定精确的 session UUID
 - 也可以先用 `Escape` 取消 → `claude` 启动新会话 → CC 内部再用 `/resume <会话名>` 切换（内部命令更稳定）
-- **明确已知问题**：仅 1 个匹配结果时 Enter 可能不生效——属于 CC CLI 的 TUI bug。用 session UUID 绕过。CC 退出时会打印 `Resume this session with: claude --resume <uuid>` ——记住这个 UUID
+- **已知问题：`claude --resume <uuid>` 无效（2026-06-11 确认）**：CC resume 不支持通过 session UUID 恢复，UUID 会被当作搜索词。只能通过名称搜索或方向键选择。此外，CC 退出时打印的 `Resume this session with: claude --resume <uuid>` 中的 UUID 并非直接可用参数。
+- **搜索不可靠**：resume 搜索可能找不到已知存在的 session（session 实际名称是一长段消息预览，不含用户记忆的关键词）。超过 3 分钟搜索无果应放弃，改用新建 session + 从输出文件续接（见 SKILL.md pitfalls #111-#113）。
 
 **切换流程：**
 
@@ -235,12 +259,14 @@ tmux send-keys -t claude-session 'claude' Enter
 cat > /tmp/cc_msg.txt << 'EOF'
 ...长消息内容...
 EOF
-scp /tmp/cc_msg.txt <host-alias>:"/Users/用户名/cc_msg.txt"
-tmux send-keys -t claude-session '读取 C:\\Users\\用户名\\cc_msg.txt，...' Enter
+scp /tmp/cc_msg.txt <ssh-alias>:"<windows-userhome>/cc_msg.txt"
+tmux send-keys -t claude-session '读取 C:\\Users\\<ssh-user>\\cc_msg.txt，...' Enter
 # 短 send-keys 不受 accept edits 影响，可用于触发读文件指令
 ```
 
 **铁律：paste-buffer 在 accept edits 和 plan mode 下都不可靠。** 优先用 BTab 切 plan mode + 短 send-keys，其次 scp 兜底。
+
+**⚠️ Accept edits 渐进式阻塞（2026-06-10 新增）：** 阻塞是渐进加重的——刚启动时 send-keys 正常，CC 执行多次工具调用后间歇吞输入，最终可能进入完全阻塞（所有按键被吞，C-c×3/Escape//exit 全无效）。详见 [error-recovery.md §10](references/error-recovery.md)。**预防：长任务减少工具调用频率，中途 C-c+重发比等 CC 自然结束更安全。**
 
 ### Plan Mode Interview 表单
 
@@ -334,7 +360,7 @@ Ready to submit your answers?
 
 ```bash
 # 从 Windows 传到云端（在 tmux / CC 中执行）
-cd "<项目目录>" && tar czf - health-management-skill | ssh -p <SSH端口> ubuntu@<服务器IP> "cd /home/<云端用户>/.hermes/profiles/family/skills/family/health-management && tar xzf -"
+cd "<windows-project-root>" && tar czf - health-management-skill | ssh -p <ssh-port> ubuntu@<cloud-tailscale-ip> "cd <cloud-home>/.hermes/profiles/family/skills/family/health-management && tar xzf -"
 ```
 
 **优势**：
@@ -351,7 +377,7 @@ cd /dest/path && mv subdir/* . && rmdir subdir
 
 ```bash
 # 可能失败——空格导致路径解析问题
-scp -P <SSH端口> -r "用户名@host:<项目目录>\\project" .
+scp -P 2222 -r "<ssh-user>@host:D:\\claude vscode\\project" .
 ```
 
 SCP 在以下场景易出错：源路径含空格、嵌套目录层数深、目标目录不存在。`tar + SSH` 管道是更稳定的替代方案。\n\n
@@ -364,6 +390,43 @@ tmux new-session -d -s claude-session -x 140 -y 40
 tmux send-keys -t claude-session 'cd /path/to/project && claude' Enter
 # 处理弹窗后，用 --continue 恢复未完成的对话
 ```
+
+## 新任务 vs 进入现有对话（铁律）
+
+**必须区分两个场景：**
+
+| 场景 | 操作 | 原因 |
+|------|------|------|
+| 在现有 CC 对话中继续/恢复 | `--resume` 或直接发消息 | 上下文连续 |
+| 开启**新讨论话题**（与本对话无关） | `/exit` → `claude` 新启动 → 四步法 | 新话题需要干净的上下文 |
+
+**常见错误（2026-06-17 实战）**：Hermes 需要与 CC 讨论一个全新的设计话题，但直接在 CC 现有的法律WIKI对话中发送讨论内容——导致 CC 在已加载的文件上下文中处理不相关的任务。
+
+**正确流程：**
+
+```bash
+# 1. /exit 退出当前 CC 对话
+tmux send-keys -t claude-session '/exit' Enter
+sleep 3
+
+# 2. 确认 CC 已退出（看到 bash 提示符）
+tmux capture-pane -t claude-session -p -S -3
+
+# 3. cd 到项目目录 → claude 启动新对话 → HERMES-ACTIVATE → /rename
+tmux send-keys -t claude-session 'cd /d "<windows-project-root>"' Enter
+sleep 2
+tmux send-keys -t claude-session 'claude --model glm-5-turbo' Enter
+sleep 8
+# 处理弹窗 → 确认空闲
+tmux send-keys -t claude-session '<!-- HERMES-ACTIVATE -->' Enter
+sleep 3
+tmux send-keys -t claude-session '/rename Hermes:任务名' Enter
+sleep 2
+
+# 4. 更新 task_map → 开始新任务
+```
+
+**判别信号**：用户说"跟CC讨论XX"且 XX 与 CC 当前对话内容无关 → 必须新建对话。若用户说"让CC继续做XX"且 XX 是当前对话的延伸 → 直接发消息。
 
 ## 端到端示例：新任务启动
 
