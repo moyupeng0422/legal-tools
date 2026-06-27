@@ -1,14 +1,14 @@
 """批量任务输出文件完整性验证。检查：批次连续性、唯一性、源行覆盖、逐条消息覆盖。
 用法：根据实际任务修改顶部配置项，scp 到 Windows 后 SSH 执行。
-      python -u <windows-tmp>\batch-verify.py
+      python -u D:\tmp\batch-verify.py
 """
 import glob, re, sys
 from collections import Counter
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ===== 配置（按实际任务修改）=====
-OUTPUT_GLOB = r'<windows-tmp>\*人工筛选*.md'        # 输出文件 glob（含中文时用 glob 规避编码问题）
-SOURCE_GLOB = r'<windows-tmp>\*过滤后*.md'           # 源文件 glob
+OUTPUT_GLOB = r'D:\tmp\*人工筛选*.md'        # 输出文件 glob（含中文时用 glob 规避编码问题）
+SOURCE_GLOB = r'D:\tmp\*过滤后*.md'           # 源文件 glob
 SOURCE_MSG_PATTERN = r'\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}'  # 源文件中消息行的正则
 EXPECTED_BATCH_RANGE = (1, 78)                 # 预期批次范围 (start, end)
 # =================================

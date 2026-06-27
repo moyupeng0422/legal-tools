@@ -72,7 +72,7 @@ Hermes(云端) ──SSH pipe──→ claude-agent-acp (Windows)
 #### 3.4 Hermes 侧集成
 
 Hermes 的 `delegate_task` 已支持 `acp_command`（如 `copilot --acp --stdio`），但目前仅限本地 spawn。远程 ACP 需：
-- 通过 SSH 管道启动：`ssh <ssh-alias> "claude-agent-acp"`
+- 通过 SSH 管道启动：`ssh local-win "claude-agent-acp"`
 - 或等待 Hermes 实现 GitHub Issue [#689](https://github.com/NousResearch/hermes-agent/issues/689)（Remote Agent Connection）
 
 ### 4. tmux 优化（渐进改进，不换底层）
@@ -91,7 +91,7 @@ Hermes 的 `delegate_task` 已支持 `acp_command`（如 `copilot --acp --stdio`
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
-| `ANTHROPIC_BASE_URL` | `<api-endpoint-anthropic>` | 智谱提供 **Anthropic 协议兼容** 端点 |
+| `ANTHROPIC_BASE_URL` | `https://<API_服务商域名>/api/anthropic` | 智谱提供 **Anthropic 协议兼容** 端点 |
 | `ANTHROPIC_AUTH_TOKEN` | 智谱 API Key | 认证凭据 |
 | `ANTHROPIC_MODEL` | `glm-5-turbo` | 默认模型 |
 | 配置位置 | `~/.claude/settings.json` → `env` 字段 | CC 启动时注入，非系统环境变量 |
@@ -112,7 +112,7 @@ npm install -g @agentclientprotocol/claude-agent-acp
 ### 启动方式
 
 ```bash
-set ANTHROPIC_BASE_URL=<api-endpoint-anthropic>
+set ANTHROPIC_BASE_URL=https://<API_服务商域名>/api/anthropic
 set ANTHROPIC_AUTH_TOKEN=<智谱API Key>
 claude-agent-acp
 ```
@@ -172,7 +172,7 @@ CC 阅读了 claude-agent-acp 源码（`runAcp` 函数），确认协议细节�
 import subprocess, json
 
 proc = subprocess.Popen(
-    ["ssh", "<ssh-alias>", "claude-agent-acp"],
+    ["ssh", "local-win", "claude-agent-acp"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE
@@ -223,7 +223,7 @@ CC 在讨论中提出了 5 个关键设计决策，部分已定论：
 | B: Windows SSH → 云端 | CC 所在 Windows 主动维持到云端的 SSH | 需要 Windows 端常驻 SSH 进程 |
 | C: 双向 SSH 隧道 | 类似现有 dashboard 的 -L 转发 | 可复用已有模式 |
 
-**倾向**：方案 A — `ssh <ssh-alias> "claude-agent-acp"` 建立 stdio 管道，最简且方向与 tmux 一致。
+**倾向**：方案 A — `ssh local-win "claude-agent-acp"` 建立 stdio 管道，最简且方向与 tmux 一致。
 
 ### #2 协议层实现方式
 
@@ -311,7 +311,7 @@ Hermes 侧 Python 脚本 `~/.hermes/scripts/acp_test.py` 测试结果：**全链
 ### 远程命令
 
 ```bash
-ssh <ssh-alias> "set ANTHROPIC_BASE_URL=<api-endpoint-anthropic> && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
+ssh local-win "set ANTHROPIC_BASE_URL=https://<API_服务商域名>/api/anthropic && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
 ```
 
 ### 测试结果

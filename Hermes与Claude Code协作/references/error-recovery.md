@@ -148,7 +148,7 @@ CC 的结论与 Hermes 的观察不一致（详见 monitoring-debate.md 事实�
 ```
 SSH 断连 → CC 被杀
     ① 检查 Tailscale：tailscale status / tailscale ping（relay 假活时 down+up）
-    ② 重连 SSH：ssh -o ConnectTimeout=20 -o ServerAliveInterval=10 <ssh-alias>
+    ② 重连 SSH：ssh -o ConnectTimeout=20 -o ServerAliveInterval=10 local-win
     ③ 重建 tmux（如需要）
     ④ SSH → cd → claude 启动 CC
     ⑤ 激活四步法（HERMES-ACTIVATE → rename → task_map）
@@ -347,10 +347,10 @@ CC Edit 连续失败 + Pontificating 超过 5min
 
 ```bash
 # 1. SCP 验证脚本到 Windows
-scp /tmp/verify_batches.py <ssh-alias>:"D:\\tmp\\verify_batches.py"
+scp /tmp/verify_batches.py local-win:"D:\\tmp\\verify_batches.py"
 
 # 2. SSH 执行
-ssh <ssh-alias> "python -u D:\\tmp\\verify_batches.py"
+ssh local-win "python -u D:\\tmp\\verify_batches.py"
 ```
 
 **验证脚本模板**（[`templates/batch-verify.py`](../templates/batch-verify.py)）：
@@ -361,7 +361,7 @@ import glob, re
 from collections import Counter
 
 # 配置
-OUTPUT_FILE = r'<windows-tmp>\*输出文件*.md'  # glob 模式
+OUTPUT_FILE = r'D:\tmp\*输出文件*.md'  # glob 模式
 SOURCE_TOTAL_LINES = 7737               # 源文件总行数
 EXPECTED_BATCH_RANGE = (1, 78)          # 预期批次范围
 
@@ -435,11 +435,11 @@ print(f"Keep entries: {keep}, Exclude entries: {exclude}")
 
 ### SSH PowerShell `$_` 变量 corruption 注意事项
 
-通过 SSH 发送 PowerShell 命令时，`$_`（PowerShell 管道变量）会被 SSH 的 shell 解释为 `<cloud-home>`（本地工作目录）。这导致任何使用 `$_.Line`、`$_.Group` 等的 PowerShell 命令输出错误。
+通过 SSH 发送 PowerShell 命令时，`$_`（PowerShell 管道变量）会被 SSH 的 shell 解释为 `<云端用户目录>`（本地工作目录）。这导致任何使用 `$_.Line`、`$_.Group` 等的 PowerShell 命令输出错误。
 
 **变通方案**（按可靠性排序）：
-1. **用 Python 代替 PowerShell**：`ssh <ssh-alias> "python -u -c \"...\""` — 最可靠
-2. **SCP 脚本文件后执行**：先 `scp script.py <ssh-alias>:"D:\\tmp\\"` 再 `ssh <ssh-alias> "python D:\\tmp\\script.py"`
+1. **用 Python 代替 PowerShell**：`ssh local-win "python -u -c \"...\""` — 最可靠
+2. **SCP 脚本文件后执行**：先 `scp script.py local-win:"D:\\tmp\\"` 再 `ssh local-win "python D:\\tmp\\script.py"`
 3. **用 `cmd /c` + findstr**：简单计数时可用，但不支持复杂逻辑
 
 ## 12. 长任务监控节奏优化（2026-06-10 实战）
@@ -482,9 +482,9 @@ Esc to cancel · Tab to amend
 1. **SSH 直接执行**（最可靠）：
    ```bash
    # Windows 用 PowerShell（rm 不可用）
-   ssh -p <ssh-port> <ssh-user>@host 'powershell -Command "Remove-Item -Force \"path1\",\"path2\""'
+   ssh -p <SSH_端口> <Windows_用户名>@host 'powershell -Command "Remove-Item -Force \"path1\",\"path2\""'
    # mv 操作
-   ssh -p <ssh-port> <ssh-user>@host 'powershell -Command "Move-Item \"src\" \"dest\""'
+   ssh -p <SSH_端口> <Windows_用户名>@host 'powershell -Command "Move-Item \"src\" \"dest\""'
    ```
 
 2. **让 CC 用 Write 工具替代 mv/rm**：
