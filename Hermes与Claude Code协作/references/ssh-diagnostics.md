@@ -5,12 +5,12 @@ Hermes 与本地 Windows 之间的 SSH 不通时的系统化诊断流程。
 ## 架构
 
 ```
-Hermes（云端）── SSH ──→ Windows（<ssh-user>@<windows-tailscale-ip>:<ssh-port>）
+Hermes（云端）── SSH ──→ Windows（HUAWEI@100.107.207.104:2222）
                      ↑
-                 ~/.ssh/config → <ssh-alias>
+                 ~/.ssh/config → local-win
 ```
 
-> **SSH 配置：** `Host <ssh-alias>` / `HostName <windows-tailscale-ip>`（Tailscale IP）/ `Port <ssh-port>` / `User <ssh-user>`
+> **SSH 配置：** `Host local-win` / `HostName 100.107.207.104`（Tailscale IP）/ `Port 2222` / `User HUAWEI`
 
 ## 诊断决策树
 
@@ -19,25 +19,32 @@ SSH 连接失败
     │
     ├── "Could not resolve hostname"
     │    → 检查 ~/.ssh/config 中 Host 别名是否存在
-    │    → cat ~/.ssh/config | grep -A4 <ssh-alias>
+    │    → cat ~/.ssh/config | grep -A4 local-win
     │
     ├── "Connection refused"
     │    → sshd 未运行或端口不对
     │    → Windows 上检查：
     │       Get-Service sshd                    # 是否 Running
-    │       netstat -an | findstr :<ssh-port>          # 是否 LISTENING
+    │       netstat -an | findstr :2222          # 是否 LISTENING
     │    → 修复：Start-Service sshd
     │
     └── "Connection timed out" / Operation timed out
          │
          ├── Step 1: 区分端口状态
-         │    nc -zv -w10 <windows-tailscale-ip> 2222
+         │    nc -zv -w10 100.107.207.104 2222
          │    ├── "refused" → sshd 挂了（回退到上方 refused 流程）
          │    └── "timed out" → TCP 握手失败，继续 Step 2
          │
+         ├── Step 1.5: 云端 Tailscale 快速修复（优先尝试）
+         │    sudo systemctl restart tailscaled
+         │    sleep 3
+         │    ssh -o ConnectTimeout=10 local-win "echo OK"
+         │    → 若恢复，说明是云端 Tailscale stale 状态（常见：长时间运行后 DERP 连接池耗尽）
+         │    → 若仍失败，继续 Step 2
+         │
          ├── Step 2: 检查 Tailscale 连通性
          │    tailscale status | grep 100.107.207
-         │    tailscale ping -c 3 <windows-tailscale-ip>
+         │    tailscale ping -c 3 100.107.207.104
          │    │
          │    ├── ping 不通 → Tailscale 数据面故障
          │    │    → 让用户在 Windows 上重启 Tailscale
@@ -46,7 +53,7 @@ SSH 连接失败
          │    │
          │    └── ping 通但延迟高（如 ~4.7s relay）
          │         → 走中继而非直连（derp），SSH 超时需加大：
-         │            ssh -o ConnectTimeout=30 <ssh-alias> "..."
+         │            ssh -o ConnectTimeout=30 local-win "..."
          │         仍超时 → Step 3
          │
          └── Step 3: 检查 Windows 防火墙
@@ -54,7 +61,7 @@ SSH 连接失败
               → Windows 上检查：
                  Get-NetFirewallRule -DisplayName "*SSH*" | ft DisplayName, Enabled, Direction, Action
               → 如果无入站允许规则，添加：
-                 New-NetFirewallRule -DisplayName "SSH 2222" -Direction Inbound -Port <ssh-port> -Protocol TCP -Action Allow
+                 New-NetFirewallRule -DisplayName "SSH 2222" -Direction Inbound -Port 2222 -Protocol TCP -Action Allow
               → 或者临时禁用防火墙测试：Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
                  （⚠️ 仅测试用，测试完需恢复）
 ```
@@ -79,7 +86,7 @@ tailscale status 中的连接模式：
 
 ```bash
 # 用户本地 VSCode 终端执行
-ssh ubuntu@<cloud-tailscale-ip> -p <ssh-port>    # 云端 Tailscale IP，端口 2222
+ssh ubuntu@100.90.24.4 -p 2222    # 云端 Tailscale IP，端口 2222
 tmux attach -t claude-session      # 进入后执行，实时看到 CC
 ```
 
@@ -94,13 +101,13 @@ tmux attach -t claude-session      # 进入后执行，实时看到 CC
 ```bash
 # 云端（Hermes）
 tailscale status | grep 100.107.207         # 连接状态和模式
-tailscale ping <windows-tailscale-ip>              # Tailscale 层 ping
-nc -zv -w10 <windows-tailscale-ip> 2222            # 端口级别测试
-ssh -v -o ConnectTimeout=10 <ssh-alias> "echo OK"  # 详细 SSH 调试日志
+tailscale ping 100.107.207.104              # Tailscale 层 ping
+nc -zv -w10 100.107.207.104 2222            # 端口级别测试
+ssh -v -o ConnectTimeout=10 local-win "echo OK"  # 详细 SSH 调试日志
 
 # Windows 端（用户手动执行）
 Get-Service sshd                             # SSH 服务状态
-netstat -an | findstr :<ssh-port>                  # 端口监听状态
+netstat -an | findstr :2222                  # 端口监听状态
 Get-NetFirewallRule -DisplayName "*SSH*"    # 防火墙规则
 ```
 
@@ -111,5 +118,6 @@ Get-NetFirewallRule -DisplayName "*SSH*"    # 防火墙规则
 | 1 | `Connection refused` | sshd 未启动 | `Start-Service sshd` |
 | 2 | `timed out`，Tailscale ping 通但延迟高 (~4.7s relay) | 中继延迟 + 网络波动 | 加大 ConnectTimeout 至 30s，持续重试；网络稳定后自行恢复 |
 | 3 | 稳定连接 | ✅ | — |
+| 4 | SCP 超时 + SSH 不通 | 云端 Tailscale stale（长时间运行后 DERP 连接池耗尽） | `sudo systemctl restart tailscaled` 后立即恢复 |
 
 > **注意**：阶段 2 中 `timed out` 但 ping 通，优先怀疑网络抖动/中继延迟，不要过早下结论说防火墙拦截。防火墙只在端口 `refused`（而不是 `timed out`）时才是主因。

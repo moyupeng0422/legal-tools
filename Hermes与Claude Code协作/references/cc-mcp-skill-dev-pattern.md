@@ -87,8 +87,8 @@ When evaluating MCP vs CLI architecture for a Skill:
 "wechat-decrypt": {
   "type": "stdio",
   "command": "python",
-  "args": ["<windows-tmp>/wechat-decrypt/mcp_server.py"],
-  "cwd": "<windows-tmp>/wechat-decrypt"
+  "args": ["D:/tmp/wechat-decrypt/mcp_server.py"],
+  "cwd": "D:/tmp/wechat-decrypt"
 }
 ```
 
@@ -159,8 +159,8 @@ When `/mcp` shows server as "failed" with empty tool list:
 ### Step 1: Verify server not in wrong config file
 ```bash
 # Check if server is in .claude.json (correct) or mcp.json (wrong)
-python -c "import json; d=json.load(open(r'<windows-userhome>\.claude.json')); print('wechat-decrypt' in d.get('mcpServers',{}))"
-python -c "import json; d=json.load(open(r'<windows-userhome>\.claude\mcp.json')); print(d.get('mcpServers',{}).keys())"
+python -c "import json; d=json.load(open(r'C:\Users\HUAWEI\.claude.json')); print('wechat-decrypt' in d.get('mcpServers',{}))"
+python -c "import json; d=json.load(open(r'C:\Users\HUAWEI\.claude\mcp.json')); print(d.get('mcpServers',{}).keys())"
 ```
 
 ### Step 2: Verify server can start

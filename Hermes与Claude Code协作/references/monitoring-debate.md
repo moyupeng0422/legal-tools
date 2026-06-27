@@ -2,43 +2,6 @@
 
 监控 CC 执行状态、处理 CC 提问、辩论裁决、事实校验。
 
-## Table of Contents
-
-- [1. 监控链路](#1-监控链路)
-- [2. CC Pane 三区域模型](#2-cc-pane-三区域模型)
-- [2.5 R1 独立分析汇报格式（2026-06-16 新增）](#25-r1-独立分析汇报格式（2026-06-16-新增）)
-- [3. 状态判定表](#3-状态判定表)
-- [4. 辩论协议](#4-辩论协议)
-  - [4.0 讨论模式（Collaborative Assessment）— 方案细化场景](#40-讨论模式（collaborative-assessment）-方案细化场景)
-  - [4.1 核心原则](#41-核心原则)
-  - [4.2 风险分级](#42-风险分级)
-  - [4.3 查证分工](#43-查证分工)
-  - [4.4 R2 子轮机制](#44-r2-子轮机制)
-  - [4.5 Verdict 格式](#45-verdict-格式)
-  - [4.6 裁决原则](#46-裁决原则)
-  - [4.7 Token 节省规则](#47-token-节省规则)
-- [5. 任务类型专用流程](#5-任务类型专用流程)
-  - [5.1 验证 / 复杂问题](#51-验证-复杂问题)
-  - [5.2 写作 / 协作类](#52-写作-协作类)
-- [6. 事实校验](#6-事实校验)
-- [7. CC 提问处理](#7-cc-提问处理)
-- [7. 增强 ACK 指纹协议（v3.1）](#7-增强-ack-指纹协议（v31）)
-  - [7.1 核心设计：分离回显与判断](#71-核心设计：分离回显与判断)
-  - [7.2 ACK 格式](#72-ack-格式)
-  - [7.3 截断检测信号（CC 侧可标注）](#73-截断检测信号（cc-侧可标注）)
-  - [7.4 "步"的粒度重定义](#74-步的粒度重定义)
-  - [7.5 权限预授权共识](#75-权限预授权共识)
-  - [7.6 完整的协作优化优先级](#76-完整的协作优化优先级)
-- [8. PAUSE 处理（v2.1 新增）](#8-pause-处理（v21-新增）)
-- [9. DISCUSS 队列拦截（v3.8 新增）](#9-discuss-队列拦截（v38-新增）)
-- [9.5 send-keys 消息排队现象（2026-06-10 实战）](#95-send-keys-消息排队现象（2026-06-10-实战）)
-- [10. 自言自语监控模式（2026-06-24 新增）](#10-自言自语监控模式（2026-06-24-新增）)
-- [11. COMPLETE 标记（v2.1 新增）](#11-complete-标记（v21-新增）)
-  - [A. 监控文件修复任务](#a-监控文件修复任务)
-  - [C. v2.1 协议辩论全记录（2026-06-02 案例）](#c-v21-协议辩论全记录（2026-06-02-案例）)
-
----
-
 ## 1. 监控链路
 
 每次 send-keys / paste-buffer 后，必须执行监控循环。不允许"发送后不管"。
@@ -84,8 +47,8 @@ capture-pane 捕获的是 CC 整个终端画面，需区分三个独立区域：
           ↑ 输入框上方 · thinking 指示器（emoji + 文字）
 区域② → > 或 ❯
           ↑ 输入框 · 提示符
-区域③ → ⏸ plan mode on / ⏵⏵ accept edits on / （无标记）
-          ↑ 底部状态栏 · UI 模式
+区域③ → ⏸ plan mode on / ⏵⏵ accept edits on / （无标记） | X% until auto-compact
+          ↑ 底部状态栏 · 左侧=UI 模式，右侧=context 使用率（auto-compact 阈值）
 ```
 
 **关键规则：**
@@ -583,33 +546,82 @@ CC 遇到需要 Hermes 决策的边界情况时发送 `<!-- PAUSE:task-X:step-N 
 
 **预防**：每条指令发送后确认 CC 已开始处理（capture-pane 看到思考 emoji）再发下一条。不要连续快速发送多条 send-keys。
 
-## 10. 自言自语监控模式（2026-06-24 新增）
+### 10. 自言自语监控模式（2026-06-24 新增，2026-06-26 修正+扩展）
 
-**场景**：Hermes 通过 tmux capture-pane 监控用户与 CC 的实时讨论。用户可能在 tmux session 中 attach 并直接与 CC 交互，Hermes 通过轮询 pane 内容观察对话进展。
+**场景**：Hermes 通过 tmux capture-pane 监控用户与 CC 的实时讨论。
 
 **核心规则**：
 
-1. **用 💭/⚠️/📋 前缀做自言自语**：发现 CC 回复有问题、用户在讨论中 @ Hermes 征求意见等场景时，通过自言自语（💭/⚠️/📋 前缀）在 Hermes 自身的回复中记录分析和质疑，**不直接回复用户**
-2. **不主动输出**：除非用户显式 @ Hermes 或说 "OK" 要求汇报，否则 Hermes 保持静默监控，用工具调用的 process 日志记录观察
-3. **等用户说 OK 才结束监控 turn**：用户说 "OK" 或 "汇报" 后，Hermes 汇报本轮监控的所有自言自语记录和发现的问题
-4. **轮询节奏**：与正常监控相同（5-8s 间隔，短频快速），但 turn 内可以发多轮 capture-pane 不输出到用户
+1. **用 💭/⚠️/📋 前缀做自言自语**：发现 CC 回复有问题、用户在讨论中 @ Hermes 征求意见等场景时，通过自言自语（💭/⚠️/📋 前缀）在 Hermes 自身的回复中记录分析和质疑，**不直接回复用户**（除非用户说"询问hermes"之类的话）
+2. **不主动输出**：除非用户显式说 "询问hermes" / "OK" / "汇报" / "停止" 等，否则 Hermes 保持静默监控，用 💭/⚠️ 前缀记录观察
+3. **🚨 禁止退出 turn**：在用户说"停止"前，Hermes **绝对不可退出 turn**。监控是持续的，每个轮询间隔后都必须继续 capture-pane，不允许回复一句"CC 空闲，等你操作"后结束 turn。**这是最严格的纪律——违反即被用户纠正（2026-06-26 实际触发）**
+4. **🚨 禁止后台进程监控**：监控必须通过 **turn 内 sleep + capture-pane** 实现，**禁止**用 `terminal(background=true)` 启动后台监控脚本。后台进程把轮询控制权交给 Hermes 的通知系统，无法在 turn 内持续输出自言自语。**正确做法**：每个 sleep 后紧跟 capture-pane，每个 capture-pane 后检查是否需要输出自言自语，然后继续下一个 sleep——全部在同一个 turn 内完成
+5. **轮询节奏**：sleep 8-20s（比普通监控稍慢，因为是观察而非等弹窗），但 turn 内持续不断
+6. **用户指令触发的响应**：
+   - 用户说"询问hermes" / "问hermes" → Hermes 用 💭 前缀回复分析
+   - 用户说"OK" / "汇报" → Hermes 汇报本轮所有自言自语汇总
+   - 用户说"停止" / "结束监控" → Hermes 结束监控 turn
 
 **典型模式**：
 ```
-Hermes: [启动监控，turn 不结束]
-  → capture-pane → 发现 CC 回复
+Hermes: [启动监控，turn 不结束，用 sleep+capture-pane 循环]
+  → sleep 15 && capture-pane → 发现 CC 回复
   → 💭 CC 提出了方案 C，倾向于 XXX。质疑：...
-  → capture-pane → 用户输入
-  → ⚠️ 用户在讨论 @ 语法归属问题，未@
-  → capture-pane → 无变化
-  → 📋 用户没输入，可能在思考。继续监控。
-  → capture-pane → 用户说 "OK"
-  → 结束 turn，汇报自言自语汇总
+  → sleep 15 && capture-pane → 用户输入中（未发送）
+  → （继续监控，不输出）
+  → sleep 15 && capture-pane → 用户发送了
+  → 💭 用户说的是 X，CC 会理解为 Y...
+  → sleep 15 && capture-pane → CC 处理中（✽ thinking）
+  → （继续监控）
+  → sleep 15 && capture-pane → CC 完成，等待用户
+  → （继续监控，不退出）
+  → sleep 15 && capture-pane → 用户说"询问hermes"
+  → 💭 关于你问的 X，我的分析是...
+  → sleep 15 && capture-pane → 用户说"停止"
+  → 结束 turn
 ```
+
+**反面案例（2026-06-26）**：
+1. Hermes 用 `terminal(background=true)` 启动后台监控脚本 → 用户纠正「不是后台监控，是你直接同turn监控」
+2. Hermes 轮询两轮后回复「CC 空闲，等你操作」然后退出 turn → 用户纠正「你为什么擅自退出turn，我的指令是持续监控...在我表示停止前，不中断监控」
 
 **与普通监控模式的区别**：
 - 普通监控：Hermes 是 CC 的指令者，发指令→等结果→汇报
 - 自言自语监控：Hermes 是**观察者**，不向 CC 发指令，只记录观察和分析；用户是 CC 的直接交互者
+
+### 10.1 监控中的主动并行研究（2026-06-26 新增）
+
+**场景**：用户与 CC 讨论需要调研某个主题（如 GitHub 项目评估），但 CC 的 Web Search 持续返回 0 结果（已知问题，见 Pitfall #1）。
+
+**问题**：用户等 CC 搜出结果才推进讨论，但 CC 的搜索工具坏了。用户可能自己说"询问hermes：你也一起调研一下"，也可能不说——Hermes 应主动识别并行动。
+
+**处理模式**：
+
+```
+capture-pane 发现 CC 执行 Web Search 且返回 0 结果
+       │
+       ▼
+💭 识别信号 → Hermes 主动发起并行搜索（web_search + web_extract）
+       │
+       ▼
+💭 用 💭 格式汇报搜索结果（CC 正在处理的同一主题）
+       │
+       ├── CC 通过 webReader fallback 成功读取 URL
+       │   → 💭 CC 已自动切换到 webReader，正在读取 X/Y/Z 项目
+       │   → 💭 我的独立搜索也找到了这些项目，额外发现 A/B/C
+       │
+       └── CC 卡在搜索循环中
+           → 💭 CC 搜索全 0，可能需要中断（考虑是否 C-c）
+           → 💭 这是我的调研结果，可以作为参考
+```
+
+**关键规则**：
+1. **不等用户请求就行动**：发现 CC Web Search 返回 0 且主题明确时，Hermes 应主动搜索。用户说"询问hermes"是确认信号，不是触发条件
+2. **用 💭 格式呈现**：搜索结果以自言自语形式记录，不直接回复用户（除非用户说"询问hermes"或"汇报"）
+3. **独立质疑 CC 结论**：CC 最终通过 webReader 读到项目后给出评估，Hermes 应独立质疑（如"CC 说 X 是弱项但实际 Y 成立"），用 ⚠️ 格式记录
+4. **CC 的 webReader fallback**：CC 在 Web Search 返回 0 后会自动尝试用 webReader 读取具体 URL（如 GitHub 仓库页面）。这个 fallback 通常需要 30-60s 才有结果。Hermes 不需要干预这个 fallback，只需同步做自己的搜索补充 CC 覆盖不到的维度
+
+**实战案例（2026-06-26）**：用户让 CC 调研 GitHub 上的 Obsidian + CC 记忆库项目。CC 4 次 Web Search 全 0。Hermes 主动执行 3 个并行 web_search，找到 5 个高匹配项目（claude-obsidian、knowledge-base-server、obsidian-mind、lawyer-knowledge-graph、MegaMem）。CC 随后通过 webReader fallback 读了 4 个项目（claude-obsidian、obsidian-wiki、basic-memory、obsidian-mind）。两边结果高度重叠但各有独家发现。Hermes 用 💭 格式记录了独立质疑（如 CC 说"Graph View 是 Ombre Brain 弱项"可能不准确）。
 
 **⚠️ 注意**：此模式与 pitfall #102（CC 观察监控模式）有重叠但不同——#102 是用户手动操作 CC 时 Hermes 做基础设施搭建+观察；自言自语模式侧重于用户与 CC 讨论方案时 Hermes 的旁听和分析记录。
 

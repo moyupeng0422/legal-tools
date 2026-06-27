@@ -2,38 +2,6 @@
 
 CC 执行过程中的各类异常场景及恢复流程。
 
-## Table of Contents
-
-- [1. CC 崩溃](#1-cc-崩溃)
-- [2. 权限弹窗误拒](#2-权限弹窗误拒)
-- [3. API 限流 / 计费错误](#3-api-限流-计费错误)
-- [4. 工具执行失败](#4-工具执行失败)
-- [5. SSH 连接断开](#5-ssh-连接断开)
-- [6. 上下文窗口耗尽](#6-上下文窗口耗尽)
-- [7. 事实校验未通过](#7-事实校验未通过)
-- [8. CC 长任务 SSH 断连恢复（2026-06-10 实战）](#8-cc-长任务-ssh-断连恢复（2026-06-10-实战）)
-- [9. CC Germinating 超长卡住（2026-06-10 实战）](#9-cc-germinating-超长卡住（2026-06-10-实战）)
-- [10. Accept Edits 渐进式阻塞（2026-06-10 实战）](#10-accept-edits-渐进式阻塞（2026-06-10-实战）)
-  - [阻塞渐进演变](#阻塞渐进演变)
-  - [触发条件](#触发条件)
-  - [恢复路径](#恢复路径)
-  - [预防措施](#预防措施)
-  - [与 §9 的关系](#与-9-的关系)
-- [11. CC Session 名不匹配用户记忆（2026-06-11 实战）](#11-cc-session-名不匹配用户记忆（2026-06-11-实战）)
-- [12. /exit CC 丢失当前批次进度（2026-06-11 实战）](#12-exit-cc-丢失当前批次进度（2026-06-11-实战）)
-- [13. Edit/Write 静默失败产生数据缺口（2026-06-10 实战）](#13-editwrite-静默失败产生数据缺口（2026-06-10-实战）)
-- [14. Auto-compact 导致批量输出文件重复 + CC 搜索浪费（2026-06-11 实战）](#14-auto-compact-导致批量输出文件重复-cc-搜索浪费（2026-06-11-实战）)
-- [15. 批量任务完成后数据完整性验证（2026-06-11 实战）](#15-批量任务完成后数据完整性验证（2026-06-11-实战）)
-  - [验证方法（Hermes 从云端 SSH 执行）](#验证方法（hermes-从云端-ssh-执行）)
-  - [验证后处理](#验证后处理)
-  - [SSH PowerShell `$_` 变量 corruption 注意事项](#ssh-powershell-_-变量-corruption-注意事项)
-- [12. 长任务监控节奏优化（2026-06-10 实战）](#12-长任务监控节奏优化（2026-06-10-实战）)
-- [16. Accept Edits 模式下 Bash 权限弹窗不响应（2026-06-17 实战）](#16-accept-edits-模式下-bash-权限弹窗不响应（2026-06-17-实战）)
-- [17. CC 写入路径不一致（2026-06-17 实战）](#17-cc-写入路径不一致（2026-06-17-实战）)
-- [端到端示例：处理 API 限流](#端到端示例：处理-api-限流)
-
----
-
 ## 1. CC 崩溃
 
 **检测：** `capture-pane` 连续 3 次输出相同，且显示 shell 提示符（非 `❯`）。
@@ -180,7 +148,7 @@ CC 的结论与 Hermes 的观察不一致（详见 monitoring-debate.md 事实�
 ```
 SSH 断连 → CC 被杀
     ① 检查 Tailscale：tailscale status / tailscale ping（relay 假活时 down+up）
-    ② 重连 SSH：ssh -o ConnectTimeout=20 -o ServerAliveInterval=10 <ssh-alias>
+    ② 重连 SSH：ssh -o ConnectTimeout=20 -o ServerAliveInterval=10 local-win
     ③ 重建 tmux（如需要）
     ④ SSH → cd → claude 启动 CC
     ⑤ 激活四步法（HERMES-ACTIVATE → rename → task_map）
@@ -379,10 +347,10 @@ CC Edit 连续失败 + Pontificating 超过 5min
 
 ```bash
 # 1. SCP 验证脚本到 Windows
-scp /tmp/verify_batches.py <ssh-alias>:"D:\\tmp\\verify_batches.py"
+scp /tmp/verify_batches.py local-win:"D:\\tmp\\verify_batches.py"
 
 # 2. SSH 执行
-ssh <ssh-alias> "python -u D:\\tmp\\verify_batches.py"
+ssh local-win "python -u D:\\tmp\\verify_batches.py"
 ```
 
 **验证脚本模板**（[`templates/batch-verify.py`](../templates/batch-verify.py)）：
@@ -393,7 +361,7 @@ import glob, re
 from collections import Counter
 
 # 配置
-OUTPUT_FILE = r'<windows-tmp>\*输出文件*.md'  # glob 模式
+OUTPUT_FILE = r'D:\tmp\*输出文件*.md'  # glob 模式
 SOURCE_TOTAL_LINES = 7737               # 源文件总行数
 EXPECTED_BATCH_RANGE = (1, 78)          # 预期批次范围
 
@@ -467,11 +435,11 @@ print(f"Keep entries: {keep}, Exclude entries: {exclude}")
 
 ### SSH PowerShell `$_` 变量 corruption 注意事项
 
-通过 SSH 发送 PowerShell 命令时，`$_`（PowerShell 管道变量）会被 SSH 的 shell 解释为 `<cloud-home>`（本地工作目录）。这导致任何使用 `$_.Line`、`$_.Group` 等的 PowerShell 命令输出错误。
+通过 SSH 发送 PowerShell 命令时，`$_`（PowerShell 管道变量）会被 SSH 的 shell 解释为 `/home/ubuntu`（本地工作目录）。这导致任何使用 `$_.Line`、`$_.Group` 等的 PowerShell 命令输出错误。
 
 **变通方案**（按可靠性排序）：
-1. **用 Python 代替 PowerShell**：`ssh <ssh-alias> "python -u -c \"...\""` — 最可靠
-2. **SCP 脚本文件后执行**：先 `scp script.py <ssh-alias>:"D:\\tmp\\"` 再 `ssh <ssh-alias> "python D:\\tmp\\script.py"`
+1. **用 Python 代替 PowerShell**：`ssh local-win "python -u -c \"...\""` — 最可靠
+2. **SCP 脚本文件后执行**：先 `scp script.py local-win:"D:\\tmp\\"` 再 `ssh local-win "python D:\\tmp\\script.py"`
 3. **用 `cmd /c` + findstr**：简单计数时可用，但不支持复杂逻辑
 
 ## 12. 长任务监控节奏优化（2026-06-10 实战）
@@ -514,9 +482,9 @@ Esc to cancel · Tab to amend
 1. **SSH 直接执行**（最可靠）：
    ```bash
    # Windows 用 PowerShell（rm 不可用）
-   ssh -p <ssh-port> <ssh-user>@host 'powershell -Command "Remove-Item -Force \"path1\",\"path2\""'
+   ssh -p 2222 HUAWEI@host 'powershell -Command "Remove-Item -Force \"path1\",\"path2\""'
    # mv 操作
-   ssh -p <ssh-port> <ssh-user>@host 'powershell -Command "Move-Item \"src\" \"dest\""'
+   ssh -p 2222 HUAWEI@host 'powershell -Command "Move-Item \"src\" \"dest\""'
    ```
 
 2. **让 CC 用 Write 工具替代 mv/rm**：

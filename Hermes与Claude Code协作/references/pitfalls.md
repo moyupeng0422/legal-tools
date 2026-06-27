@@ -23,14 +23,14 @@
 
 ## Table of Contents（按类别分组）
 
-- **启动序列/session 管理**: #3, #5, #8, #32, #41, #47, #48, #49, #50, #54, #89, #89a, #90, #110, #111, #112, #113, #118, #119, #123
+- **启动序列/session 管理**: #3, #5, #8, #32, #41, #47, #48, #49, #50, #54, #89, #89a, #90, #110, #111, #112, #113, #118, #119, #123, #138
 - **弹窗/权限处理**: #2, #6, #9, #12, #27, #29, #42, #55, #70a, #83, #86, #108, #128, #130
 - **消息发送/截断**: #9, #13, #24, #30, #42, #68, #68b, #99, #119
 - **协议标记**: #18, #24, #69, #126
 - **传话/辩论**: #10, #26, #75, #78, #92, #126, #131, #132
 - **监控/超时**: #7, #73, #102, #105, #107, #108
 - **编码/Windows 环境**: #8, #54, #55, #68b, #97, #97a
-- **CC 工具行为**: #1a, #72, #92, #110, #111, #122
+- **CC 工具行为**: #1a, #72, #92, #110, #111, #122, #135, #136, #137
 - **写作协作**: #77, #78, #93, #95, #120
 - **批量任务/context**: #68b, #100, #101, #104, #107, #114, #115, #116, #118, #121
 - **SSH/网络**: #28, #44, #54, #55, #68b, #97, #97a, #106
@@ -84,7 +84,7 @@
 9. **accept edits 阻塞**：capture-pane 看到 `⏵⏵ accept edits on` 时，paste-buffer 发送的长消息可能只收到最后一行（CC 只解析了最后一段文本）。处理优先级：
    1. `BTab`（Shift+Tab）→ 切换到 `⏸ plan mode on`，此模式下短 send-keys 正常工作。
    2. `Escape` → `Enter` → 尝试退出 accept edits 回到正常模式
-   3. **scp 文件绕过**：将长内容 scp 到 Windows（如 `<windows-userhome>/msg.txt`），用短 send-keys 让 CC `读取 <windows-userhome>\msg.txt`。绕过 paste-buffer 截断问题
+   3. **scp 文件绕过**：将长内容 scp 到 Windows（如 `/Users/HUAWEI/msg.txt`），用短 send-keys 让 CC `读取 C:\Users\HUAWEI\msg.txt`。绕过 paste-buffer 截断问题
    4. **最后手段**：`/exit` → 重新 `claude` 启动 → 再 paste-buffer。短 send-keys 不受 accept edits 影响，可用来发退出指令
 
 ### #10. 传话陷阱
@@ -93,11 +93,11 @@
 
 ### #11. 勿假设密钥未配置
 
-11. **勿假设密钥未配置**：用户问"怎么连上 XX"时，先检查 `authorized_keys` 和 `~/.ssh/config` 是否已有配置，不要上来就生成新密钥对。用户可能早已配好，只需给出最终命令（如 `ssh ubuntu@<cloud-tailscale-ip> -p <ssh-port>`）。
+11. **勿假设密钥未配置**：用户问"怎么连上 XX"时，先检查 `authorized_keys` 和 `~/.ssh/config` 是否已有配置，不要上来就生成新密钥对。用户可能早已配好，只需给出最终命令（如 `ssh ubuntu@100.90.24.4 -p 2222`）。
 
-### #12. CC interview 表单用数字键 + 两拍法
+### #12. CC 弹窗导航不可靠——数字键不一定移动 `>` 光标（v3.10 修正→v3.50 同步详细版）
 
-12. **CC interview 表单用数字键 + 两拍法**：CC plan mode 的 interview 表单上写"Tab/Arrow keys to navigate"，但直接按数字键（1-6）更高效可靠。**关键：数字和 Enter 必须分两拍发送**（`send-keys '数字'` → sleep 0.5s → `send-keys Enter`），间隔 ≥ 300ms。单次 `send-keys '数字' Enter` 可能被 CC 忽略不生效。选择后 capture-pane 验证，未生效则 Ctrl+C 取消 → 等空闲 → 重发消息避开 interview 表单。
+12. **CC 弹窗导航不可靠——数字键不一定移动 `>` 光标（v3.10 修正→v3.50 同步详细版）**：CC 的权限弹窗和 interview 表单导航并不可靠——按数字键后 `>` 光标**不一定移动到对应选项**。实测多次出现按 `2` + Enter 但 `>` 仍停在 option 1（弹窗未通过）。**正确流程**：① 按数字键或 Tab/Down 导航 ② **立即 capture-pane 验证 `>` 位置**（`>` 必须出现在目标选项行首）③ 确认移动后才按 Enter。若 `>` 未移动：补发 Down 直到 `>` 到位 → 再 Enter。**两拍法仍有效**（数字/Down 与 Enter 分开发送，间隔 ≥ 300ms），但增加了第②步验证。未生效时切勿重复按数字键+Enter（会重复排队），应 Ctrl+C 取消 → 等空闲 → 重发。注意 option 1 是默认选中时直接 Enter 即可通过。Tab 可以切换选项描述文本（如 "Yes, and tell Claude what to do next" ↔ "Yes"），但不移动 `>` 光标。
 
 ### #13. Plan mode 下 paste-buffer 不可靠
 
@@ -165,7 +165,7 @@
 
 ### #28. SSH 断连后 capture-pane 陷阱
 
-28. **SSH 断连后 capture-pane 陷阱**：SSH 断开后 tmux session 回退到本地 bash，但 scrollback 中残留大量 CC 旧输出（方案、表格、提示符），致使 capture-pane 看起来 CC 还活着。判别方法：`tail -1` 看最后一行是不是 `$ ` 或 `>` —— 是 bash 则 SSH 已断，是 `>` 带 emoji 标记则 CC 运行中。恢复流程：先 `ssh -o ConnectTimeout=10 <ssh-alias> "echo OK"` 确认 SSH 通 → tmux 内重新 `ssh <ssh-alias>` → 进入 CC 工作目录 → `claude --continue` 恢复。切勿在断连的 session 内直接发 `<!-- HERMES-ACTIVATE -->`——bash 会把 `!` 当历史扩展报错。
+28. **SSH 断连后 capture-pane 陷阱**：SSH 断开后 tmux session 回退到本地 bash，但 scrollback 中残留大量 CC 旧输出（方案、表格、提示符），致使 capture-pane 看起来 CC 还活着。判别方法：`tail -1` 看最后一行是不是 `$ ` 或 `>` —— 是 bash 则 SSH 已断，是 `>` 带 emoji 标记则 CC 运行中。恢复流程：先 `ssh -o ConnectTimeout=10 local-win "echo OK"` 确认 SSH 通 → tmux 内重新 `ssh local-win` → 进入 CC 工作目录 → `claude --continue` 恢复。切勿在断连的 session 内直接发 `<!-- HERMES-ACTIVATE -->`——bash 会把 `!` 当历史扩展报错。
 
 ### #29. CC 弹窗统一用两拍法
 
@@ -177,7 +177,7 @@
 
 ### #31. 真实 CC vs delegate_task 子代理
 
-31. **真实 CC vs delegate_task 子代理**：`delegate_task` 是在云端本机 spawn 的 LLM 子代理，**不是** Windows 上的真实 Claude Code。当用户说"让 CC 做"时，必须通过 tmux → SSH → Windows CC 通道。只有在 SSH 不可用或任务不需要 Windows 本地文件操作时，才考虑子代理模拟。判断依据：CC 是否能通过 tmux 连通（`ssh <ssh-alias> echo OK`）——能则用真实 CC，不能则汇报用户重建连接。
+31. **真实 CC vs delegate_task 子代理**：`delegate_task` 是在云端本机 spawn 的 LLM 子代理，**不是** Windows 上的真实 Claude Code。当用户说"让 CC 做"时，必须通过 tmux → SSH → Windows CC 通道。只有在 SSH 不可用或任务不需要 Windows 本地文件操作时，才考虑子代理模拟。判断依据：CC 是否能通过 tmux 连通（`ssh local-win echo OK`）——能则用真实 CC，不能则汇报用户重建连接。
 
 ### #32. `claude --continue` / `/resume` 恢复失败（Cannot read properties of null）
 
@@ -193,11 +193,11 @@
 
 ### #35. CC 代码的第一版输出需要逐行审查
 
-35. **CC 代码的第一版输出需要逐行审查**：CC 频繁在同一类问题上出错——(a) 环境变量名混淆（ANTHROPIC_API_KEY vs ANTHROPIC_AUTH_TOKEN）(b) 协议字段结构假设错误（扁平解析 vs 嵌套解析）(c) 平台路径假设（Linux <cloud-home> 当 Windows cwd）(d) 非有效参数（mode 传给不接受它的方法）(e) ACP 方法名错误（messages/create vs session/prompt）。Hermes 应预期 CC 的第一版代码包含此类错误，逐行审查后再执行，不要只看概要描述就通过。
+35. **CC 代码的第一版输出需要逐行审查**：CC 频繁在同一类问题上出错——(a) 环境变量名混淆（ANTHROPIC_API_KEY vs ANTHROPIC_AUTH_TOKEN）(b) 协议字段结构假设错误（扁平解析 vs 嵌套解析）(c) 平台路径假设（Linux /home/ubuntu 当 Windows cwd）(d) 非有效参数（mode 传给不接受它的方法）(e) ACP 方法名错误（messages/create vs session/prompt）。Hermes 应预期 CC 的第一版代码包含此类错误，逐行审查后再执行，不要只看概要描述就通过。
 
 ### #36. 空闲判断铁律（v3.8 新增）
 
-36. **空闲判断铁律（v3.8 新增）**：CC pane 有三个独立区域——①输入框上方（emoji 标记 ✶/✽/✻/✢/· 等，有=thinking，无=空闲）；②输入框（`>` 提示符）；③底部状态栏（UI 模式）。**空闲只看区域①，不看区域③。** accept edits、plan mode、normal mode 只是 UI 模式，只要有 emoji 标记就不是空闲，没有就是空闲。accept edits 模式下的限制是发送方式（用短 send-keys 不用 paste-buffer），不是不可发送。不要混淆"发送方式受限"和"不可发送"。
+36. **空闲判断铁律（v3.8 新增）**：CC pane 有三个独立区域——①输入框上方（emoji 标记 ✶/✽/✻/✢/· 等，有=thinking，无=空闲）；②输入框（`>` 提示符）；③底部状态栏（左侧=UI 模式，右侧=X% until auto-compact）。**空闲只看区域①，不看区域③。** accept edits、plan mode、normal mode 只是 UI 模式，只要有 emoji 标记就不是空闲，没有就是空闲。accept edits 模式下的限制是发送方式（用短 send-keys 不用 paste-buffer），不是不可发送。不要混淆"发送方式受限"和"不可发送"。**区域③右侧的 auto-compact 百分比不用于空闲判断，但监控中应关注——接近阈值（~90%）时 CC 即将自动压缩上下文。**
 
 ### #37. CC 自动推荐 vs 用户输入（v3.8 新增）
 
@@ -225,7 +225,7 @@
 
    **⚠️ 区分两种行为模式（2026-06-10 新增）**：
    - **延迟排队**（更常见）：send-keys 不是被吞，而是排队延迟送达——可能延迟 30s~数分钟后才出现在输入框中。判别信号：CC 当前正 busy（有 emoji/thinking 标记）时发的 send-keys 会在 CC 空闲后逐条出现。**处理**：不要重复发送同一指令（会导致重复排队），耐心等待 CC 完成当前操作后再检查输入框。
-   - **完全阻塞**（少见但严重）：CC 空闲但仍不响应任何输入。判别信号：连续 3 次 send-keys 后 capture-pane 无任何变化（输入框无回显、状态栏不变）→ 确认为阻塞。**推荐恢复路径（按优先级）**：1. **核弹选项（最快最可靠）**：直接 `tmux kill-session -t claude-session` 杀掉整个 tmux session → `tmux new-session -d -s claude-session -x 200 -y 60` 重建 → SSH → cd → `claude --model glm-5.2` → 激活四步法。用户明确建议：「直接杀了tmux重进就行了」——比在阻塞 session 中尝试各种恢复命令快得多。2. 轻度尝试：C-c 暴力连发 3 次 → 等 1s → Escape → Enter。3. SSH 断连检查：`ssh -o ConnectTimeout=10 <ssh-alias> echo OK`。SSH 断 + accept edits 阻塞 是双重故障模式，需先恢复 SSH 再处理 CC。**注意：accept edits 并非总是完全阻塞——见陷阱 43。**
+   - **完全阻塞**（少见但严重）：CC 空闲但仍不响应任何输入。判别信号：连续 3 次 send-keys 后 capture-pane 无任何变化（输入框无回显、状态栏不变）→ 确认为阻塞。**推荐恢复路径（按优先级）**：1. **核弹选项（最快最可靠）**：直接 `tmux kill-session -t claude-session` 杀掉整个 tmux session → `tmux new-session -d -s claude-session -x 200 -y 60` 重建 → SSH → cd → `claude --model glm-5.2` → 激活四步法。用户明确建议：「直接杀了tmux重进就行了」——比在阻塞 session 中尝试各种恢复命令快得多。2. 轻度尝试：C-c 暴力连发 3 次 → 等 1s → Escape → Enter。3. SSH 断连检查：`ssh -o ConnectTimeout=10 local-win echo OK`。SSH 断 + accept edits 阻塞 是双重故障模式，需先恢复 SSH 再处理 CC。**注意：accept edits 并非总是完全阻塞——见陷阱 43。**
 
 _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
@@ -238,7 +238,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #44. Tailscale relay 假活（v3.11 新增→v3.46 补充）
 
-44. **Tailscale relay 假活（v3.11 新增→v3.46 补充）**：tailscale status 显示 active relay hkg 但 tailscale ping 全部超时——relay 连接卡死但状态未更新。判别：tailscale status 的 rx 字段长时间不变（如 rx 92016 持续数分钟）→ relay 已死。**诊断方向优先级**：SSH 超时时，**先检查云端 Tailscale 状态**（历史多次案例均为云端侧问题），不要先假设本地 Windows 有问题。检查顺序：① `tailscale status` 看 rx 是否停滞 ② `ping <windows-tailscale-ip>` 测试连通 ③ 云端 `sudo tailscale down && sleep 3 && sudo tailscale up`（注意：down 后需等 10-15s 让 up 完全重建连接，期间 status 可能短暂显示 `-`）④ 如果云端 status 显示 `-` 但 ping 已通，说明 relay 刚建立、状态显示延迟，可直接尝试 SSH。修复：先在 Windows 端 Disconnect → Connect（通常无效），终极大招是云端 `sudo tailscale down && sleep 3 && sudo tailscale up`→ 重建 relay 连接。与 SSH 断连的关联：Tailscale relay 假活 → SSH 超时 → tmux 内 CC 进程退出 → capture-pane 显示旧 scrollback（陷阱 28）。需先修复 Tailscale，再走 SSH 重连流程。
+44. **Tailscale relay 假活（v3.11 新增→v3.46 补充）**：tailscale status 显示 active relay hkg 但 tailscale ping 全部超时——relay 连接卡死但状态未更新。判别：tailscale status 的 rx 字段长时间不变（如 rx 92016 持续数分钟）→ relay 已死。**诊断方向优先级**：SSH 超时时，**先检查云端 Tailscale 状态**（历史多次案例均为云端侧问题），不要先假设本地 Windows 有问题。检查顺序：① `tailscale status` 看 rx 是否停滞 ② `ping 100.107.207.104` 测试连通 ③ 云端 `sudo tailscale down && sleep 3 && sudo tailscale up`（注意：down 后需等 10-15s 让 up 完全重建连接，期间 status 可能短暂显示 `-`）④ 如果云端 status 显示 `-` 但 ping 已通，说明 relay 刚建立、状态显示延迟，可直接尝试 SSH。修复：先在 Windows 端 Disconnect → Connect（通常无效），终极大招是云端 `sudo tailscale down && sleep 3 && sudo tailscale up`→ 重建 relay 连接。与 SSH 断连的关联：Tailscale relay 假活 → SSH 超时 → tmux 内 CC 进程退出 → capture-pane 显示旧 scrollback（陷阱 28）。需先修复 Tailscale，再走 SSH 重连流程。
 
 ### #45. CC 已运行时的对话切换命令（v3.12 新增）
 
@@ -282,7 +282,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #54a. Playwright/Edge 路径避免非 ASCII 字符（v3.19 新增） _（同号变体之一）_
 
-54. **Playwright/Edge 路径避免非 ASCII 字符（v3.19 新增）**：Windows 上 Playwright 使用 Edge 时，`launch_persistent_context()` 的 `user_data_dir` 参数若包含中文路径，Edge 会以 exitCode=21 启动失败（无明确错误提示）。根因是 Chromium 系浏览器对非 ASCII 路径的兼容问题。**修法**：将 browser_data 目录放到纯 ASCII 路径下，如 `%TEMP%/login-helper-browser_data`。反面案例（2026-06-03）：login-helper 的 `BROWSER_DATA_DIR` 原指向含中文的 `<windows-project-root>\法律相关skill自研仓库\...`，Edge 反复 exitCode=21 无法启动，改为 `%TEMP%` 子目录后立即正常。详见 `references/edge-troubleshooting.md`。
+54. **Playwright/Edge 路径避免非 ASCII 字符（v3.19 新增）**：Windows 上 Playwright 使用 Edge 时，`launch_persistent_context()` 的 `user_data_dir` 参数若包含中文路径，Edge 会以 exitCode=21 启动失败（无明确错误提示）。根因是 Chromium 系浏览器对非 ASCII 路径的兼容问题。**修法**：将 browser_data 目录放到纯 ASCII 路径下，如 `%TEMP%/login-helper-browser_data`。反面案例（2026-06-03）：login-helper 的 `BROWSER_DATA_DIR` 原指向含中文的 `D:\claude vscode\法律相关skill自研仓库\...`，Edge 反复 exitCode=21 无法启动，改为 `%TEMP%` 子目录后立即正常。详见 `references/edge-troubleshooting.md`。
 
 ### #55. SSH → Windows headed 浏览器不弹窗：是环境限制，不是代码 bug（v3.20 新增）
 
@@ -306,7 +306,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #61. Skill 创建必须用独立项目文件夹（v3.24 新增）
 
-61. **Skill 创建必须用独立项目文件夹（v3.24 新增）**：CC 创建或重构 Hermes skill 时，**绝对禁止**直接在克隆的仓库目录（如 health-research/）中写 SKILL.md。克隆仓库是原始代码源，应保持不动。正确做法：在 `<windows-project-root>\` 下新建独立项目文件夹（如 `health-management-skill/`），其中：
+61. **Skill 创建必须用独立项目文件夹（v3.24 新增）**：CC 创建或重构 Hermes skill 时，**绝对禁止**直接在克隆的仓库目录（如 health-research/）中写 SKILL.md。克隆仓库是原始代码源，应保持不动。正确做法：在 `D:\claude vscode\` 下新建独立项目文件夹（如 `health-management-skill/`），其中：
    ```
    health-management-skill/
    ├── SKILL.md              ← 聚合 skill（入口）
@@ -324,10 +324,10 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
    反面案例（2026-06-07）：用户说「我想先试试客户管理」（指CC侧微信聊天管理Skill），Hermes 先做了 session_search、fact_store probe、read_file 等大量上下文准备工作，确认要连CC后仍准备直接连——直到用户再次提醒「记得加载cc协作skill，再连cc」才加载。正确做法：识别到任务涉及 CC 后**立即加载 skill**，再继续其他准备。\n\n64. **传话陷阱的判断标准（v3.27 新增）**：「不要当传话筒」的精确含义：收到 CC 输出后，Hermes 必须先做独立分析——指出 CC 方案的漏洞、矛盾和可改进之处——然后将质疑发回 CC 辩论（R2），而不是把 CC 的分析摘要改个格式就发给用户。\n\n   判断是否传话的标准：\n   - ❌ 传话：「CC 的分析列出了 X 个问题，包括 1...2...3...，要它改吗？」\n   - ✅ 讨论：「CC 的分析有 12 条差异，我看了觉得 #8 路由路径问题更重要，而且我倾向方案 B 而非 CC 默认的写法，理由是...」\n   \n   关键区别：传话是把 CC 的结论**格式转换**后转发；讨论是**用自己的判断给 CC 的结论做评估和定向**。详见 `references/monitoring-debate.md` §3.1 辩论协议。\n\n65. **批量任务不汇报中间进度（v3.28 新增→v3.47 扩展）**：用户说「全部完成再向我汇报」或类似表达（如「一次性汇报」「别分段说」「无需我介入」）时，在 CC 执行长周期批量任务的过程中，Hermes 应持续监控但**不向用户发送中间进度更新**。只在以下三种情况汇报：(a) 全部 Phase 完成；(b) 遇到不可恢复的阻塞需要用户决策；(c) 用户主动询问进度。
 
 **CC plan 含中间停顿时发补充指令覆盖**：CC 的 plan 可能内置「每个阶段完成后询问用户」逻辑，与用户「全部做完再汇报」偏好冲突。当检测到 CC plan 中有此模式时，在 CC 开始执行前或空闲间隙立即发送补充指令（如「全程执行不中断，5个阶段全部完成后统一汇报结果，不要在每个阶段完成后停下来问我。遇到需要确认的操作按方案直接执行。」），覆盖 CC 的默认行为。不要等 CC 在每个阶段完成后弹窗提问时才临时处理——此时 CC 已经停下来了。**注意**：补充指令应在 CC 空闲时发送（无 emoji 标记），避免打断正在进行的工具调用。\n\n   **适用场景**：CC 执行多步文件清理 → 批量创建 SKILL.md → 统一修正的全流程。正确做法：capture-pane 轮询直到 DONE → 验证 → 一次性汇报全套结果。错误做法：每完成一个 Phase 就向用户报告「Phase A 完成了」「现在进 Phase B 了」。反面案例（2026-06-03）：用户连续收到 Phase A/B/C/D 的进度报告后直接说「全部完成再向我汇报」，嫌你啰嗦。\n\n67. **Tailscale IP 混淆——SSH 到云端而非 Windows（v3.30 新增）**：`tailscale status` 列出两个 IP，容易混淆：
-   - `<cloud-tailscale-ip>` = 云端 Ubuntu（Hermes 所在机器，**不是 Windows**）
-   - `<windows-tailscale-ip>` = Windows 笔记本（CC 所在机器）
+   - `100.90.24.4` = 云端 Ubuntu（Hermes 所在机器，**不是 Windows**）
+   - `100.107.207.104` = Windows 笔记本（CC 所在机器）
    
-   `ssh -p <ssh-port> <cloud-tailscale-ip>` 实际上是 SSH 回到云端自己（显示 `ubuntu@<cloud-hostname>`），不会连到 Windows。必须用 `ssh -p <ssh-port> <ssh-user>@<windows-tailscale-ip>` 才能连到 Windows。连接超时时先检查 Tailscale relay 状态（陷阱 44）。
+   `ssh -p 2222 100.90.24.4` 实际上是 SSH 回到云端自己（显示 `ubuntu@VM-0-4-ubuntu`），不会连到 Windows。必须用 `ssh -p 2222 HUAWEI@100.107.207.104` 才能连到 Windows。连接超时时先检查 Tailscale relay 状态（陷阱 44）。
 
 ### #68. 长消息用 SCP 文件绕过截断——所有模式通用（v3.31 新增，v3.36 修正→v3.45 再修正） _（同号变体之一）_
 
@@ -339,11 +339,11 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #68b. 从 Windows 到云端的批量文件传输：tar-over-SSH 优于 SCP（v3.28 新增） _（同号变体之一）_
 
-68. **从 Windows 到云端的批量文件传输：tar-over-SSH 优于 SCP（v3.28 新增）**：当需要从 Windows 本地（CC 侧）将整个 skill 项目目录（含空格路径、大量小文件）传输到云端时，`scp -r` 在以下场景失败：(a) Windows 路径含空格导致 SCP 无法解析通配符 `/*`；(b) SCP 默认要求目标目录已精确存在，中途创建子目录失败则整批中断。\\n\\n   **可靠替代方案——tar over SSH pipe：**\\n   ```bash\\n   # 云端执行：拉取 Windows 整个目录\\n   cd <cloud_dest_dir>\\n   ssh -p <port> user@windows \\\"tar -czf - -C \\\\\\\"D:/path/with spaces/target\\\\\\\" .\\\" | tar -xzf -\\n   ```\\n   \\n   **原理**：`tar -czf - -C <src> .` 在 Windows 端打包为 tar.gz 流，通过 SSH stdout pipe 直接送到云端 `tar -xzf -` 解压。不需要中间文件，不需要处理路径空格问题，一条命令完成。\\n   \\n   **注意事项**：\\n   - `-C <src>` 指定源目录，`.` 打包所有内容（不含容器目录本身）\\n   - Windows 路径用双引号包裹，内部反斜杠转义为 `\\\\\\\\` 或直接用正斜杠 `/`\\n   - 先确认目标目录已存在（`mkdir -p`）\\n   - 此方案也适用于 rsync 不可用时的替代\\n   \\n   反面案例（2026-06-03）：先后尝试 `scp -r \\\"<windows-project-root>/...\\\"` 和 `scp source/*` 均因路径空格和目标目录变化而中断，改用 tar-over-SSH 一次传输 68 个文件成功。\\n\\n68. **HTTP server 作为云→Windows 文件传输的兜底方案（v3.35 新增）**：当 SCP/SSH-pipe 向 Windows 传输文件在 Tailscale relay 下超时时，启动 Python HTTP server 是可靠替代云端方案。详见 references/http-file-transfer.md。
+68. **从 Windows 到云端的批量文件传输：tar-over-SSH 优于 SCP（v3.28 新增）**：当需要从 Windows 本地（CC 侧）将整个 skill 项目目录（含空格路径、大量小文件）传输到云端时，`scp -r` 在以下场景失败：(a) Windows 路径含空格导致 SCP 无法解析通配符 `/*`；(b) SCP 默认要求目标目录已精确存在，中途创建子目录失败则整批中断。\\n\\n   **可靠替代方案——tar over SSH pipe：**\\n   ```bash\\n   # 云端执行：拉取 Windows 整个目录\\n   cd <cloud_dest_dir>\\n   ssh -p <port> user@windows \\\"tar -czf - -C \\\\\\\"D:/path/with spaces/target\\\\\\\" .\\\" | tar -xzf -\\n   ```\\n   \\n   **原理**：`tar -czf - -C <src> .` 在 Windows 端打包为 tar.gz 流，通过 SSH stdout pipe 直接送到云端 `tar -xzf -` 解压。不需要中间文件，不需要处理路径空格问题，一条命令完成。\\n   \\n   **注意事项**：\\n   - `-C <src>` 指定源目录，`.` 打包所有内容（不含容器目录本身）\\n   - Windows 路径用双引号包裹，内部反斜杠转义为 `\\\\\\\\` 或直接用正斜杠 `/`\\n   - 先确认目标目录已存在（`mkdir -p`）\\n   - 此方案也适用于 rsync 不可用时的替代\\n   \\n   反面案例（2026-06-03）：先后尝试 `scp -r \\\"D:/claude vscode/...\\\"` 和 `scp source/*` 均因路径空格和目标目录变化而中断，改用 tar-over-SSH 一次传输 68 个文件成功。\\n\\n68. **HTTP server 作为云→Windows 文件传输的兜底方案（v3.35 新增）**：当 SCP/SSH-pipe 向 Windows 传输文件在 Tailscale relay 下超时时，启动 Python HTTP server 是可靠替代云端方案。详见 references/http-file-transfer.md。
 
 ### #69. CC 服务器不可达时的处理协议（v3.33 新增） _（同号变体之一）_
 
-69. **CC 服务器不可达时的处理协议（v3.33 新增）**：当用户要求「跟CC讨论」「让CC做」但 CC 服务器（Windows 机器）SSH 连接超时/不可达时：\\n   \\n   1. 尝试 2 次 SSH 连接（间隔 10s），仍不通则确认服务器故障\\n   2. **立即向用户报告**服务器不可达的现状，不要继续猜测或等用户主动发现\\n   3. 同时评估任务是否可**自主完成**——检查现有工具是否已有对应能力\\n   4. 向用户一次性汇报：(a) CC 不可达的约束 (b) 你的独立分析结论 (c) 替代方案\\n   \\n   **反面案例（2026-06-04）**：用户要求「你跟cc讨论完后再向我汇报」，CC 服务器 <windows-public-ip> 超时，但未及时汇报而是尝试搜索文件、查日志等绕路操作后才告知。应：迅速确认不可达 → 立即汇报 → 给出独立替代方案。\\n   \\n   **关键**：不要因为用户说「讨论完再汇报」就延迟告知 CC 不可达的事实——这是阻塞性障碍不是中间进度。CC 不可达时应走独立分析路径，而非无限等待。
+69. **CC 服务器不可达时的处理协议（v3.33 新增）**：当用户要求「跟CC讨论」「让CC做」但 CC 服务器（Windows 机器）SSH 连接超时/不可达时：\\n   \\n   1. 尝试 2 次 SSH 连接（间隔 10s），仍不通则确认服务器故障\\n   2. **立即向用户报告**服务器不可达的现状，不要继续猜测或等用户主动发现\\n   3. 同时评估任务是否可**自主完成**——检查现有工具是否已有对应能力\\n   4. 向用户一次性汇报：(a) CC 不可达的约束 (b) 你的独立分析结论 (c) 替代方案\\n   \\n   **反面案例（2026-06-04）**：用户要求「你跟cc讨论完后再向我汇报」，CC 服务器 121.36.9.143 超时，但未及时汇报而是尝试搜索文件、查日志等绕路操作后才告知。应：迅速确认不可达 → 立即汇报 → 给出独立替代方案。\\n   \\n   **关键**：不要因为用户说「讨论完再汇报」就延迟告知 CC 不可达的事实——这是阻塞性障碍不是中间进度。CC 不可达时应走独立分析路径，而非无限等待。
 
 ### #69a. 多工具整合分析的三维覆盖（2026-06-04 新增） _（同号变体之一）_
 
@@ -392,15 +392,15 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
    ```
    1. Hermes 写 review-findings.md（逐条列出：问题位置行号、根因、修复方案、可选方案）
-   2. SCP 到 Windows：`scp /tmp/review-findings.md <ssh-user>@<ssh-alias>:"<windows-project-root>/review-findings.md"`
+   2. SCP 到 Windows：`scp /tmp/review-findings.md HUAWEI@local-win:"D:/claude vscode/review-findings.md"`
    3. 在 Windows 启动 CC print mode 执行修复（不需要 tmux）：
-      `ssh <ssh-user>@<ssh-alias> "cd /d \"<windows-project-root>/target-dir\" && claude -p --permission-mode bypassPermissions --dangerously-skip-permissions \"Read D:\\claude vscode\\review-findings.md and fix all issues.\""`
+      `ssh HUAWEI@local-win "cd /d \"D:/claude vscode/target-dir\" && claude -p --permission-mode bypassPermissions --dangerously-skip-permissions \"Read D:\\claude vscode\\review-findings.md and fix all issues.\""`
       关键参数：`-p`（非交互）、`--permission-mode bypassPermissions`（自动放行）
    4. Windows 端打包修改结果 → SCP 回云端：
       ```
-      ssh <ssh-user>@<ssh-alias> powershell "Compress-Archive -Path 'D:\path\*' -DestinationPath 'D:\archive.zip' -Force"
-      scp <ssh-user>@<ssh-alias>:"D:/archive.zip" <cloud-home>/
-      unzip -o archive.zip -d <cloud-home>/review/
+      ssh HUAWEI@local-win powershell "Compress-Archive -Path 'D:\path\*' -DestinationPath 'D:\archive.zip' -Force"
+      scp HUAWEI@local-win:"D:/archive.zip" /home/ubuntu/
+      unzip -o archive.zip -d /home/ubuntu/review/
       ```
    5. Hermes 验证修改质量：
       - 语法检查：`python3 -m py_compile scripts/target.py`
@@ -409,13 +409,13 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
       - 逐项对比 review-findings.md，确认所有问题已修复
    6. 验证通过后将修改后的包传回 Windows 覆盖原目录（保持版本一致）
    7. 部署到 Hermes：
-      - 复制到 skills 目录：`cp -r <cloud-home>/source ~/.hermes/skills/skill-name/`
+      - 复制到 skills 目录：`cp -r /home/ubuntu/source ~/.hermes/skills/skill-name/`
       - 验证注册：`skills_list` 确认新 skill 及子 skill 都在列表中
       - 验证加载：`skill_view('skill-name')` 确认 SKILL.md 内容完整、路由表正确
       - 删除旧 skill（被替代时）：`skill_manage(action='delete', name='old-skill', absorbed_into='new-skill')`
 
    Windows 路径关键技巧：
-   - `scp` 用正斜杠：`"<windows-project-root>/file.txt"` ✅
+   - `scp` 用正斜杠：`"D:/claude vscode/file.txt"` ✅
    - `ssh cd` 用 `cd /d "D:\dir"`（/d 切换驱动器）
    - `powershell Compress-Archive` 用反斜杠
 
@@ -537,8 +537,8 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 ### #89. CC 启动序列铁律——cd→启动→激活→resume（2026-06-08 新增） _（同号变体之一）_
 
 89. **CC 启动序列铁律——cd→启动→激活→resume（2026-06-08 新增）**：启动 CC 的完整序列必须严格按以下顺序，不可跳步或混淆：
-   1. `ssh <ssh-alias>`（确认连接）
-   2. `cd /d "<windows-project-root>"`（进入项目目录——**不是用户 home 目录**）
+   1. `ssh local-win`（确认连接）
+   2. `cd /d "D:\claude vscode"`（进入项目目录——**不是用户 home 目录**）
    3. `claude --model glm-5.2`（正常模式，**禁止 `--dangerously-skip-permissions`**，见陷阱 #2）
    4. `<!-- HERMES-ACTIVATE -->`（激活协作模式）
    5. `/rename Hermes:<任务名>`（命名对话，带前缀）
@@ -553,7 +553,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #89a. 启动 CC 前必须 cd 到项目目录（2026-06-08 新增） _（同号变体之一）_
 
-89. **启动 CC 前必须 cd 到项目目录（2026-06-08 新增）**：启动 CC 前必须在 SSH 连接后先 `cd /d "D:\项目目录"` 再执行 `claude`。否则 CC 在 `<windows-userhome>`（用户 home）启动，看不到项目文件和 CLAUDE.md 上下文，后续所有操作基于错误的 cwd。**强制流程**：`ssh <ssh-alias>` → `cd /d "D:\项目目录"` → `claude --model xxx`（绝不加 `--dangerously-skip-permissions`）→ 过弹窗 → 激活四步法。反面案例（2026-06-08）：Hermes 直接 `ssh <ssh-alias> && claude` 导致 CC 启动在 home 目录，用户指出「你没进正确的项目目录啊」。
+89. **启动 CC 前必须 cd 到项目目录（2026-06-08 新增）**：启动 CC 前必须在 SSH 连接后先 `cd /d "D:\项目目录"` 再执行 `claude`。否则 CC 在 `C:\Users\HUAWEI`（用户 home）启动，看不到项目文件和 CLAUDE.md 上下文，后续所有操作基于错误的 cwd。**强制流程**：`ssh local-win` → `cd /d "D:\项目目录"` → `claude --model xxx`（绝不加 `--dangerously-skip-permissions`）→ 过弹窗 → 激活四步法。反面案例（2026-06-08）：Hermes 直接 `ssh local-win && claude` 导致 CC 启动在 home 目录，用户指出「你没进正确的项目目录啊」。
 
 ### #90. Resume 两种用法——启动参数 vs CC 内部命令（2026-06-10 修正）
 
@@ -593,11 +593,11 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #97a. Hermes 不得通过 SSH 直接操作本地 Windows 文件——必须委派给 CC（2026-06-09 新增→v3.46 扩展至读取） _（同号变体之一）_
 
-97. **Hermes 不得通过 SSH 直接操作本地 Windows 文件——必须委派给 CC（2026-06-09 新增→v3.46 扩展至读取）**：核心原则 #6（按位置执行）规定了"云端文件由 Hermes 操作，本地文件由 CC 操作"。**此规则同时适用于读取和修改**——不仅不能通过 SSH 修改本地文件，也不应通过 SSH 读取本地文件（`ssh <ssh-alias> "cat ..."`, `scp ... <ssh-alias>:/path /tmp/...` 等）。读取本地文件（查看内容、确认进度、分析结构）同样应委派给 CC 执行——CC 直接 Read 本地路径比 Hermes 通过 SSH 通道更可靠（无编码问题、无路径转义问题、无 relay 延迟）。**默认规则**：本地文件的所有操作（读/写/改）必须委派给 CC 执行。反面案例（2026-06-17）：Hermes 试图 SSH 到 Windows 读取法律WIKI目录结构，用户纠正"你不需要读取本地文件，应该让cc读取"。**例外**：用户可显式授权 Hermes 直接操作。正确做法：在 TASK 指令中要求 CC 读取并汇报本地文件内容，Hermes 基于 CC 的汇报进行分析。
+97. **Hermes 不得通过 SSH 直接操作本地 Windows 文件——必须委派给 CC（2026-06-09 新增→v3.46 扩展至读取）**：核心原则 #6（按位置执行）规定了"云端文件由 Hermes 操作，本地文件由 CC 操作"。**此规则同时适用于读取和修改**——不仅不能通过 SSH 修改本地文件，也不应通过 SSH 读取本地文件（`ssh local-win "cat ..."`, `scp ... local-win:/path /tmp/...` 等）。读取本地文件（查看内容、确认进度、分析结构）同样应委派给 CC 执行——CC 直接 Read 本地路径比 Hermes 通过 SSH 通道更可靠（无编码问题、无路径转义问题、无 relay 延迟）。**默认规则**：本地文件的所有操作（读/写/改）必须委派给 CC 执行。反面案例（2026-06-17）：Hermes 试图 SSH 到 Windows 读取法律WIKI目录结构，用户纠正"你不需要读取本地文件，应该让cc读取"。**例外**：用户可显式授权 Hermes 直接操作。正确做法：在 TASK 指令中要求 CC 读取并汇报本地文件内容，Hermes 基于 CC 的汇报进行分析。
 
 ### #99. 编辑 D 盘文件前必须 SCP 最新版——不可依赖本地缓存（2026-06-10 新增）
 
-99. **编辑 D 盘文件前必须 SCP 最新版——不可依赖本地缓存（2026-06-10 新增）**：当文件可能在 Hermes 操作间隙被第三方（用户、CC、其他工具）修改时，编辑前必须重新 SCP 拉取最新版。**判别信号**：上次 SCP 时间 > 30 分钟前，或知道 CC/用户也在操作同一文件。**反面案例（本次）**：Hermes 先 SCP 获取了 219 行版本写入 `/tmp/cc-article-draft-v6.md` 并在其上编辑，但 D 盘文件已被修改为 253 行版本（结构完全重排），Hermes 未重新拉取就直接在旧版上操作。**正确流程**：每次编辑前 `scp D盘路径 /tmp/latest.md` → `read_file /tmp/latest.md` → 基于最新版编辑 → `scp /tmp/latest.md D盘路径`。：通过 SSH 执行 PowerShell `Get-Content`、Python `open()` 或 `cmd /c type` 读取含中文字符的 Windows 文件路径时，返回的中文内容全部乱码（Windows console 编码与 SSH channel 不匹配）。**可靠 workaround**：先 `copy` 文件到 ASCII 路径（如 `<windows-userhome>\temp.md`），再 SCP 到云端读取。反面：`ssh <ssh-alias> "python -c \"f=open(r'D:\\中文路径\\file.md'...)\"`  → 乱码。正面：`ssh <ssh-alias> "copy \"D:\\中文路径\\file.md\" C:\\Users\\<ssh-user>\\temp.md"` → `scp -P 2222 <ssh-user>@<ssh-alias>:<windows-userhome>/temp.md /tmp/file.md` → `cat /tmp/file.md` → 正确。**注意**：SCP 本身传输中文路径文件不受影响（scp 客户端处理编码），问题出在 SSH 命令执行端的 console 编码。
+99. **编辑 D 盘文件前必须 SCP 最新版——不可依赖本地缓存（2026-06-10 新增）**：当文件可能在 Hermes 操作间隙被第三方（用户、CC、其他工具）修改时，编辑前必须重新 SCP 拉取最新版。**判别信号**：上次 SCP 时间 > 30 分钟前，或知道 CC/用户也在操作同一文件。**反面案例（本次）**：Hermes 先 SCP 获取了 219 行版本写入 `/tmp/cc-article-draft-v6.md` 并在其上编辑，但 D 盘文件已被修改为 253 行版本（结构完全重排），Hermes 未重新拉取就直接在旧版上操作。**正确流程**：每次编辑前 `scp D盘路径 /tmp/latest.md` → `read_file /tmp/latest.md` → 基于最新版编辑 → `scp /tmp/latest.md D盘路径`。：通过 SSH 执行 PowerShell `Get-Content`、Python `open()` 或 `cmd /c type` 读取含中文字符的 Windows 文件路径时，返回的中文内容全部乱码（Windows console 编码与 SSH channel 不匹配）。**可靠 workaround**：先 `copy` 文件到 ASCII 路径（如 `C:\Users\HUAWEI\temp.md`），再 SCP 到云端读取。反面：`ssh local-win "python -c \"f=open(r'D:\\中文路径\\file.md'...)\"`  → 乱码。正面：`ssh local-win "copy \"D:\\中文路径\\file.md\" C:\\Users\\HUAWEI\\temp.md"` → `scp -P 2222 HUAWEI@local-win:C:/Users/HUAWEI/temp.md /tmp/file.md` → `cat /tmp/file.md` → 正确。**注意**：SCP 本身传输中文路径文件不受影响（scp 客户端处理编码），问题出在 SSH 命令执行端的 console 编码。
 
 ### #100. CC 分页采样不足即下结论——数据量严重低估（2026-06-10 新增）
 
@@ -643,7 +643,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #108. CC bash 权限确认框在长监控中完全吞输入（2026-06-10 新增）
 
-108. **CC bash 权限确认框在长监控中完全吞输入（2026-06-10 新增）**：CC 在长任务执行中触发 bash 权限确认框（`Do you want to proceed? > 1. Yes / 2. No`）时，如果 CC 处于 accept edits 模式或长时间运行后的特殊状态，确认框可能完全吞掉所有输入——`1`、`Enter`、`Escape` 均无效，capture-pane 连续多次完全一致。**这不同于普通的 accept edits 阻塞（pitfall #42）**——普通阻塞影响所有 send-keys，但此问题特定于 bash 确认框。**变通**：Hermes 通过 SSH 远程直接执行 CC 想要的命令（如 `ssh <ssh-alias> "grep -oP 'Batch \d+' file.md | sort ..."`），绕过 CC 的确认框。或者在 tmux 中 `C-c` 取消 CC 当前操作，手动确认弹窗消失后，让 CC 用搜索工具（Read/grep）代替 bash grep 做检查。反面案例（本次）：CC 完成 5958 条导出后自动发起 grep 检查批次连续性，确认框吞输入，Hermes 发 1、Enter、Escape×3 均无效，最终改为 Hermes 远程 SSH 执行 grep 完成检查。
+108. **CC bash 权限确认框在长监控中完全吞输入（2026-06-10 新增）**：CC 在长任务执行中触发 bash 权限确认框（`Do you want to proceed? > 1. Yes / 2. No`）时，如果 CC 处于 accept edits 模式或长时间运行后的特殊状态，确认框可能完全吞掉所有输入——`1`、`Enter`、`Escape` 均无效，capture-pane 连续多次完全一致。**这不同于普通的 accept edits 阻塞（pitfall #42）**——普通阻塞影响所有 send-keys，但此问题特定于 bash 确认框。**变通**：Hermes 通过 SSH 远程直接执行 CC 想要的命令（如 `ssh local-win "grep -oP 'Batch \d+' file.md | sort ..."`），绕过 CC 的确认框。或者在 tmux 中 `C-c` 取消 CC 当前操作，手动确认弹窗消失后，让 CC 用搜索工具（Read/grep）代替 bash grep 做检查。反面案例（本次）：CC 完成 5958 条导出后自动发起 grep 检查批次连续性，确认框吞输入，Hermes 发 1、Enter、Escape×3 均无效，最终改为 Hermes 远程 SSH 执行 grep 完成检查。
 
 ### #109. Compaction 后不要纠结旧对话内容——信任用户当前指令（2026-06-10 新增）
 
@@ -663,7 +663,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #113. 找不到 CC session 时的实用替代方案（2026-06-11 新增→修正）
 
-113. **找不到 CC session 时的实用替代方案（2026-06-11 新增→修正）**：当 CC resume 列表中找不到目标 session 时（搜索无结果、名称不匹配、session 被清理），不要无限翻页尝试——最高效的替代方案是**新建 session + 从输出文件续接**：(a) 正常启动 CC 新 session → 激活四步法 → rename；(b) 告诉 CC 读取之前的输出文件（如 `<windows-tmp>/法律AI加油站_人工筛选记录.md`）确认已完成进度；(c) 让 CC 从断点继续执行。CC 能通过文件内容自动定位进度，无需找到原始 session。**注意**：对于批量任务，建议启动后先 BTab 切换 plan mode 再发任务指令（见陷阱 #42 预防措施），避免 accept edits 阻塞。**反面案例**：本次花费 15+ 分钟在 resume 搜索、翻页、UUID 恢复尝试中反复失败，最终用户建议用方案 2（新 session 续接）。
+113. **找不到 CC session 时的实用替代方案（2026-06-11 新增→修正）**：当 CC resume 列表中找不到目标 session 时（搜索无结果、名称不匹配、session 被清理），不要无限翻页尝试——最高效的替代方案是**新建 session + 从输出文件续接**：(a) 正常启动 CC 新 session → 激活四步法 → rename；(b) 告诉 CC 读取之前的输出文件（如 `D:/tmp/法律AI加油站_人工筛选记录.md`）确认已完成进度；(c) 让 CC 从断点继续执行。CC 能通过文件内容自动定位进度，无需找到原始 session。**注意**：对于批量任务，建议启动后先 BTab 切换 plan mode 再发任务指令（见陷阱 #42 预防措施），避免 accept edits 阻塞。**反面案例**：本次花费 15+ 分钟在 resume 搜索、翻页、UUID 恢复尝试中反复失败，最终用户建议用方案 2（新 session 续接）。
 
 ### #114. Auto-compact during batch edit loop causes duplicate writes + Edit failures + inaccurate completion（2026-06-11 新增→实测强化）
 
@@ -681,7 +681,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
    **恢复**：CC Edit 连续失败时，Hermes C-c 打断 → 发直接指令"不要分析文件结构了，直接从第 N 批（行 X-Y）继续。读取源文件对应 100 行，逐条判断后追加写入输出文件。自动循环直到全部完成。" CC 通常在第 3-4 次 Edit 重试后成功写入。
 
-   **⚠️ 完成后必须做数据完整性验证（不可信 CC 的完成报告）**：CC 报告"全部完成"时，Hermes 必须从云端 SSH 远程执行验证脚本（`templates/batch-verify.py`），检查：(a) 批次连续性（是否所有预期批次都存在）(b) 唯一性（是否有重复批次）(c) 逐条消息覆盖（保留+排除条目是否覆盖全部源消息——见 pitfall #115）。验证后再汇报用户。执行模式：写脚本到本地 → SCP 到 Windows → `python -u <windows-tmp>\batch-verify.py`。
+   **⚠️ 完成后必须做数据完整性验证（不可信 CC 的完成报告）**：CC 报告"全部完成"时，Hermes 必须从云端 SSH 远程执行验证脚本（`templates/batch-verify.py`），检查：(a) 批次连续性（是否所有预期批次都存在）(b) 唯一性（是否有重复批次）(c) 逐条消息覆盖（保留+排除条目是否覆盖全部源消息——见 pitfall #115）。验证后再汇报用户。执行模式：写脚本到本地 → SCP 到 Windows → `python -u D:\tmp\batch-verify.py`。
 
 ### #115. CC 批量筛选默认选择性而非穷举——大量数据被静默跳过（2026-06-11 新增）
 
@@ -742,7 +742,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 121. **大数据合并验证：K未匹配条目由规则引擎兜底，不影响总数（2026-06-11 新增）**：将 K 条目匹配回源文件行号时，部分条目因时间格式特殊（如 `16:25-17:09,17:22-25` 大范围 + 多发送者合并行）无法精确匹配。**不要在匹配策略上过度投入**——这些未匹配 K 条目对应的源文件消息会落入"遗漏"集合，由规则引擎重新分类，最终结果完整且无重复。验证重点应是：`输出文件行数 = 源消息总数` + `排除行号无重复`，而非 K 匹配率 100%。
 
-116-legacy. **PowerShell `$_` 变量通过 SSH 传输时被替换为 `<cloud-home>`（2026-06-11 新增）**：通过 SSH 单引号传递 PowerShell 命令时，`$_` 会被 bash 的 SSH 传输层替换为本地 home 路径（`<cloud-home>`）。双引号、heredoc 也有类似问题。**Workaround**：(a) 用 Python 脚本替代 PowerShell（`python -u -c "..."`）；(b) 将脚本写入文件后 SCP 到 Windows 再执行（最可靠）；(c) 用 `glob.glob` 处理中文文件名避免编码问题。反面案例：本次花费 10+ 分钟尝试各种 PowerShell 语法（单引号/双引号/heredoc/cmd/echo pipe），全部因 `$_` 替换或中文编码问题失败，最终改用 Python 脚本 + SCP 方案一次成功。
+116-legacy. **PowerShell `$_` 变量通过 SSH 传输时被替换为 `/home/ubuntu`（2026-06-11 新增）**：通过 SSH 单引号传递 PowerShell 命令时，`$_` 会被 bash 的 SSH 传输层替换为本地 home 路径（`/home/ubuntu`）。双引号、heredoc 也有类似问题。**Workaround**：(a) 用 Python 脚本替代 PowerShell（`python -u -c "..."`）；(b) 将脚本写入文件后 SCP 到 Windows 再执行（最可靠）；(c) 用 `glob.glob` 处理中文文件名避免编码问题。反面案例：本次花费 10+ 分钟尝试各种 PowerShell 语法（单引号/双引号/heredoc/cmd/echo pipe），全部因 `$_` 替换或中文编码问题失败，最终改用 Python 脚本 + SCP 方案一次成功。
 
 ### #122. CC Search 工具对大文件执行时导致整个进程完全冻死（2026-06-11 新增）
 
@@ -758,7 +758,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #123. CC 长分析输出超出 tmux capture-pane 缓冲区——用文件写入绕过（2026-06-16 新增）
 
-123. **CC 长分析输出超出 tmux capture-pane 缓冲区——用文件写入绕过（2026-06-16 新增）**：当 CC 产出数千字的详细分析/审阅意见时，`capture-pane -S -100` 甚至 `-S -3000` 都无法捕获完整内容——tmux 的 pane 缓冲区有限，且 capture-pane 返回的是 pane 中的可见行数（受 tmux 窗口高度限制），超大输出会被截断。**判别信号**：capture-pane 返回的内容在关键段落处突然中断（如"待讨论问题 2 和 3"只出现了开头没有结论），连续多次 capture-pane 结果不变。**可靠 workaround**：立即用短 send-keys 让 CC 把完整输出写入文件（如"请把刚才的完整审阅意见写入 C:\\Users\\<ssh-user>\\review-output.md"），然后 SCP 到云端读取。这是获取 CC 长输出的最可靠方式——比反复尝试不同 `-S` 参数高效得多。**预防**：如果预期 CC 会产出大量分析内容（如"逐节点评方案六部分"），在原始 TASK 指令中就要求"完成后将完整分析写入 C:\\Users\\<ssh-user>\\<文件名>.md"。
+123. **CC 长分析输出超出 tmux capture-pane 缓冲区——用文件写入绕过（2026-06-16 新增）**：当 CC 产出数千字的详细分析/审阅意见时，`capture-pane -S -100` 甚至 `-S -3000` 都无法捕获完整内容——tmux 的 pane 缓冲区有限，且 capture-pane 返回的是 pane 中的可见行数（受 tmux 窗口高度限制），超大输出会被截断。**判别信号**：capture-pane 返回的内容在关键段落处突然中断（如"待讨论问题 2 和 3"只出现了开头没有结论），连续多次 capture-pane 结果不变。**可靠 workaround**：立即用短 send-keys 让 CC 把完整输出写入文件（如"请把刚才的完整审阅意见写入 C:\\Users\\HUAWEI\\review-output.md"），然后 SCP 到云端读取。这是获取 CC 长输出的最可靠方式——比反复尝试不同 `-S` 参数高效得多。**预防**：如果预期 CC 会产出大量分析内容（如"逐节点评方案六部分"），在原始 TASK 指令中就要求"完成后将完整分析写入 C:\\Users\\HUAWEI\\<文件名>.md"。
 
 ### #125. 新任务不得进入 CC 现有对话——必须先退出再新建（2026-06-17 新增）
 
@@ -802,6 +802,43 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #133. 发送任务给 CC/芭迪时必须包含本地技能文件路径（2026-06-22 新增）
 
+### #135. CC PreToolUse hook 连续报错——文件操作本身成功（2026-06-27 新增）
+
+135. **CC PreToolUse hook 连续报错——文件操作本身成功（2026-06-27 新增）**：CC 的 `~/.claude/settings.json` 中配置了 PreToolUse hooks（如 `validate-memory-ask.ps1`、`validate-mcp.ps1`），每次 CC 执行 Write 或 Edit 工具调用时这些 hook 会运行并报错（`PreToolUse:Write hook error` / `PreToolUse:Edit hook error`）。**关键：文件操作本身全部成功，hook error 不影响功能。** 监控时看到此类错误不需要干预——这是 CC 侧 hook 脚本自身的问题（可能是脚本逻辑错误、依赖缺失、或 PowerShell 兼容性），不是 CC 工具调用的失败。**但需要注意**：连续的 hook error 会让监控中的 capture-pane 输出充满错误信息，可能淹没真正的工具调用输出。若 CC 正在部署新 hook（如 IM 同步方案），应先排查现有 hook error 原因，否则新 hook 的错误信号会被噪音淹没。排查方法：让 CC 检查 `settings.json` 中 PreToolUse hooks 的 `command` 和 `matcher`，逐个禁用测试定位问题 hook。
+
+### #136. CC Stop hook stdin 不包含回复文本——需额外读 jsonl 尾部（2026-06-27 新增）
+
+136. **CC Stop hook stdin 不包含回复文本——需额外读 jsonl 尾部（2026-06-27 新增）**：当为 CC 构建 IM 同步方案时（方案 1：Hook 驱动），可能假设 Stop hook 的 stdin 包含 CC 最后一条 assistant 回复文本。**实际 stdin 只包含 `session_id` 和 `transcript_path`（jsonl 文件路径），不含消息内容。** 要获取 CC 的回复文本，hook 脚本必须：(a) 从 stdin 解析 transcript_path；(b) 读取该 jsonl 文件尾部；(c) 提取最后一条 `role: "assistant"` 消息的 `content` 字段；(d) 处理可能的 content 格式变体（纯字符串、数组含 text block）。**脚本复杂度远超 CC 最初估计的 ~50 行**——实际需要 150+ 行（含错误处理、编码处理、content 解析）。CC 在 IM 同步报告中将 Stop hook 方案设计为"stdin 直接读取回复文本"是概念错误。详见 `references/cc-hook-data-schemas.md`。
+
+133. **发送任务给 CC/芭迪时必须包含本地技能文件路径（2026-06-22 新增）**：当发送的任务需要对方了解特定技能/流程时，必须在消息中明确给出该技能的**本地实际文件路径**（Windows 绝对路径如 `D:\\\\claude vscode\\\\...`），不能依赖对方「已经知道」或给出云端路径。
+
+    **反面案例（2026-06-22，两次触发）**：
+    - 给 CC 发知识库流程审查消息时只说了「用户设计了一个流程」没给技能位置 → CC 的初步审查无意义
+    - 给芭迪发消息时写了云端路径 `~/knowledge-base-collab-plan.md` → 芭迪本地看不到
+    - 正确做法：`请先读 D:\\\\claude vscode\\\\法律相关skill自研仓库\\\\法律概念提取与建页\\\\SKILL.md`
+
+### #137. CC 概念混淆——compact ≠ 索引压缩（2026-06-27 新增）
+
+137. **CC 概念混淆——compact ≠ 索引压缩（2026-06-27 新增）**：CC 在分析自己的记忆/存储架构时，可能把两个不同机制混为一谈：
+   - **compact（上下文压缩）**：CC 的 auto-compact 是压缩当前 session 的 token 上下文窗口，生成有损摘要，但原始 jsonl 文件完整保留所有消息（0 丢失）
+   - **claude-code-memory-setup 的索引压缩**：独立工具对 jsonl 文件做后处理，提取元数据/关键词写入独立索引文件（如 Claude Sessions 插件的 distilled/ 目录）
+
+   CC 可能声称"compact 后消息会丢失"或"索引压缩就是 compact"，这是概念错误。**Hermes 监控中遇到 CC 对这两种机制做等价推理时，应立即质疑纠正**——compact 只影响上下文窗口，jsonl 文件是金矿不是累赘（完整保留所有原始消息）。此混淆在本轮 Claude Sessions 插件安装与 jsonl 完整性分析中被观察到。
+
+### #138. CC 斜杠命令对空格敏感——前导/多余空格导致命令不被识别（2026-06-27 新增）
+
+138. **CC 斜杠命令对空格敏感——前导/多余空格导致命令不被识别（2026-06-27 新增）**：CC 的斜杠命令（`/rename`、`/compact`、`/mcp`、`/resume`、`/exit` 等）对输入中的前导/多余空格敏感。如果用户（或 Hermes 通过 send-keys）发送的命令中包含前导空格（如 ` /rename xxx`）或命令参数中有额外空格，CC 可能不会将其识别为内置命令，而是当作普通消息处理。**判别方法**：`/rename` 成功时 CC 返回 `⎿  Session renamed to: xxx`；若 capture-pane 中无此确认行且 CC 将命令文本当作普通输入回复，说明命令未被识别。**预防**：(a) send-keys 发送斜杠命令时确保无前导空格；(b) 发送后立即 capture-pane 确认 CC 回显了预期响应（如 `Session renamed` / `Compacting...`）；(c) 若未识别，Escape 清空输入框后重新发送无空格版本。**反面案例（2026-06-27）**：用户在 CC 输入框中输入了带前导空格的 `/rename CC×Obsidian/调研 - 选型与可行性`，CC 无响应（命令未被识别），用户以为 rename 成功，后续才通过扫描 jsonl 发现 custom-title 未增加。
+
+### #134. 自言自语监控模式——禁止后台进程、禁止退出 turn（2026-06-26 新增）
+
+134. **自言自语监控模式——禁止后台进程、禁止退出 turn（2026-06-26 新增→2026-06-27 强化）**：当用户要求"持续监控"CC 对话（自言自语监控模式，§10）时：
+   - **禁止用 `terminal(background=true)` 启动后台监控脚本**——后台进程把轮询控制权交给 Hermes 通知系统，无法在 turn 内持续输出自言自语。必须用 **turn 内 sleep + capture-pane 循环**。反面案例（2026-06-26）：Hermes 写了 `monitor_cc.sh` 脚本用 `terminal(background=true)` 启动后台监控，用户立即纠正「不是后台监控，是你直接同turn监控」。
+   - **禁止退出 turn**——在用户说"停止"/"结束监控"前，Hermes 绝对不可结束当前 turn。轮询可以拉长间隔（15-20s），但不可以回复一句总结后退出。反面案例（2026-06-26）：Hermes 轮询两轮后回复「CC 空闲，等你操作」然后结束 turn，用户严厉纠正「你为什么擅自退出turn...在我表示停止前，不中断监控」。
+   - **⚠️ 「询问hermes」信号必须以 💭/📋 前缀回复，严禁切出监控模式（2026-06-27 用户明确纠正）**——即使 CC 无法联系 Hermes、即使回复内容很重要、即使用户看起来在等待正式回答，都必须在监控格式内（💭/📋 前缀）回复后继续轮询。不得以正常对话格式直接回复、不得结束 turn 等用户回应。此规则在 monitoring-mode.md §常见场景处理 有详细示例和自检步骤。反面案例（2026-06-27）：用户在 CC 输入框中输入"询问hermes"后，Hermes 切出监控模式以正常对话格式给出了项目归类建议，用户立即纠正「你没有遵循监控模式中提问的要求」。
+   - **用户直接在 CC 输入框打字时继续监控**——不要因为看到用户在编辑输入就停止轮询。
+
+   详见 `references/monitoring-debate.md` §10。
+
 133. **发送任务给 CC/芭迪时必须包含本地技能文件路径（2026-06-22 新增）**：当发送的任务需要对方了解特定技能/流程时，必须在消息中明确给出该技能的**本地实际文件路径**（Windows 绝对路径如 `D:\\claude vscode\\...`），不能依赖对方「已经知道」或给出云端路径。
 
     **反面案例（2026-06-22，两次触发）**：
@@ -814,8 +851,8 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
     **排查顺序**（事实优先于分析）：
     ```
     ① 实际验证：发一个写文件的任务，看 CC 是否真卡在弹窗上
-    ② bridge config：<windows-userhome>\.lark-channel\config.json → permissions.defaultAccess
-    ③ settings.json：<windows-project-root>\.claude\settings.json → permissions.allow
+    ② bridge config：C:\Users\HUAWEI\.lark-channel\config.json → permissions.defaultAccess
+    ③ settings.json：D:\claude vscode\.claude\settings.json → permissions.allow
     ```
 
     **适用场景**：任何涉及 CC 权限分析的讨论（P 模式风险、bypass、弹窗问题）。不要直接采纳 CC 的权限结论，先实际验证再下判断。

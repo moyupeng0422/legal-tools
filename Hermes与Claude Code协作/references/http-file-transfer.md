@@ -10,8 +10,8 @@ Start a simple static file server on the cloud, then have CC download the file v
 
 ```mermaid
 flowchart LR
-    Hermes[Hermes (Cloud)] -->|python3 -m http.server PORT| HTTP[HTTP Server :<http-port>]
-    Windows[CC (Windows)] -->|curl http://<cloud-tailscale-ip>:<http-port>/file| HTTP
+    Hermes[Hermes (Cloud)] -->|python3 -m http.server PORT| HTTP[HTTP Server :18888]
+    Windows[CC (Windows)] -->|curl http://100.90.24.4:18888/file| HTTP
     Hermes -->|tmux send-keys| Windows
 ```
 
@@ -23,17 +23,17 @@ flowchart LR
 write_file /tmp/my-task-file.md "<content>"
 
 # Start HTTP server as background process
-terminal(command="cd /tmp && python3 -m http.server <http-port> --bind 0.0.0.0", background=true)
+terminal(command="cd /tmp && python3 -m http.server 18888 --bind 0.0.0.0", background=true)
 
 # Verify it's serving
-curl -s -o /dev/null -w "%{http_code}" http://localhost:<http-port>/my-task-file.md
+curl -s -o /dev/null -w "%{http_code}" http://localhost:18888/my-task-file.md
 # → 200
 ```
 
 **Windows side (via CC tmux):**
 Send a short instruction via tmux:
 ```bash
-tmux send-keys -t claude-session 'curl -s http://<cloud-tailscale-ip>:<http-port>/my-task-file.md -o C:\\Users\\<ssh-user>\\my-task-file.md' Enter
+tmux send-keys -t claude-session 'curl -s http://100.90.24.4:18888/my-task-file.md -o C:\\Users\\HUAWEI\\my-task-file.md' Enter
 ```
 
 **Cleanup:**
@@ -57,8 +57,8 @@ process(action="kill", session_id="proc_xxx")  # Kill the HTTP server
 
 | Method | Direction | Result |
 |--------|-----------|--------|
-| `scp -P 2222 file <ssh-user>@<windows-tailscale-ip>:C:/Users/...` | Cloud→Windows | ❌ Times out (60s+) |
-| `cat file \| ssh -p <ssh-port> <ssh-user>@<windows-tailscale-ip> "powershell ..."` | Cloud→Windows | ❌ Times out (90s+) |
+| `scp -P 2222 file HUAWEI@100.107.207.104:C:/Users/...` | Cloud→Windows | ❌ Times out (60s+) |
+| `cat file \| ssh -p 2222 HUAWEI@100.107.207.104 "powershell ..."` | Cloud→Windows | ❌ Times out (90s+) |
 | `python3 -m http.server` on cloud, `curl` from Windows | Cloud→Windows | ✅ Works (small files fast, medium files ~90s) |
 
 **Root cause:** SCP and SSH pipe both try to maintain bidirectional control channels alongside the data transfer. Over high-latency relay connections, the flow control stalls. HTTP is simpler — single-direction GET, no bidirectional state to maintain.
@@ -67,13 +67,13 @@ process(action="kill", session_id="proc_xxx")  # Kill the HTTP server
 
 - Only works for the duration of the HTTP server process (don't rely on it for persistent access)
 - Use ephemeral high ports (>1024) — no root needed
-- The cloud's Tailscale IP (`<cloud-tailscale-ip>` for this setup) must be reachable from Windows
+- The cloud's Tailscale IP (`100.90.24.4` for this setup) must be reachable from Windows
 - Only HTTP (no HTTPS) — fine for local Tailscale network
 - Kill the HTTP server when done — don't leave it running
 - 2.6MB tar.gz took ~90s over relay; files >10MB may time out. Consider splitting large transfers.
 
 ## When to Use
 
-- SCP/SCP-r times out but SSH works (`ssh -p <ssh-port> <ssh-user>@<windows-tailscale-ip> "echo OK"` succeeds)
+- SCP/SCP-r times out but SSH works (`ssh -p 2222 HUAWEI@100.107.207.104 "echo OK"` succeeds)
 - File is small enough for HTTP but SCP chokes (< 10MB files, expect 1-2 min for larger files)
 - You need CC to download files from cloud for analysis (code structure review, config inspection)

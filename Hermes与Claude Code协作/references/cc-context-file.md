@@ -1,13 +1,13 @@
 # CC 侧协作 Context 文件
 
-部署路径：`<windows-project-root>\.claude\rules\hermes-collab.md`
+部署路径：`D:\claude vscode\.claude\rules\hermes-collab.md`
 生命周期：一次性部署，CC 启动时自动加载，通过激活标记按需启用
 
 ## 部署步骤
 
 ### 1. 放置文件
 
-将下文完整内容写入 `<windows-project-root>\.claude\rules\hermes-collab.md`。
+将下文完整内容写入 `D:\claude vscode\.claude\rules\hermes-collab.md`。
 
 ### 2. 注册到 CLAUDE.md（推荐）
 
@@ -34,7 +34,7 @@
 
 > **激活条件**：仅当对话中出现 `<!-- HERMES-ACTIVATE -->` 或 `[HERMES:task-xxx]` 标记时启用以下规则。
 > 未检测到标记时，忽略本文件全部内容，正常执行人类指令。
-> 部署路径：`<windows-project-root>\.claude\rules\hermes-collab.md`（一次性放置，自动加载）
+> 部署路径：`D:\claude vscode\.claude\rules\hermes-collab.md`（一次性放置，自动加载）
 
 ---
 

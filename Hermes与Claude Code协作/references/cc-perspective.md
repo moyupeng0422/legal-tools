@@ -110,7 +110,7 @@ Paste-buffer 发送后，Hermes 必须通过 capture-pane 确认消息内容完�
 
 ### P0 交付物
 
-1. **CC 侧 context 文件**：`<windows-project-root>\.claude\rules\hermes-collab.md`（143行，含行为守则、结构化格式、降级规则）
+1. **CC 侧 context 文件**：`D:\claude vscode\.claude\rules\hermes-collab.md`（143行，含行为守则、结构化格式、降级规则）
 2. **SOUL.md 4 条常驻规则**：强制加载 skill / 发送确认 / 先质疑后汇报 / 发现违规要指出
 3. **SKILL.md v3.0.0**：前置检查、5步循环、激活流程、发送策略、新 pitfalls
 4. **完整整合方案**：`~/.hermes/cc-integrated-plan.md`（311行，含优先级 P0-P3、降级规则、冲突点）
