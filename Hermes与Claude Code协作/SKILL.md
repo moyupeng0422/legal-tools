@@ -266,6 +266,7 @@ ssh -p {port} {user}@{host} "tmux load-buffer -t claude-session /dev/stdin" <<'E
 长消息内容
 EOF
 ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
+```
 
 > 详见 references/active-discussion-protocol.md —— 活跃讨论中的每轮协议纪律，补充任务边界协议未覆盖的轮次交互规范。
 
@@ -296,51 +297,52 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 | [legal-article-collab-lessons](references/legal-article-collab-lessons.md) | 法律助手×CC协作起草微信公众号文章实战——辩论流程纠正、CC修正边界、条款编号双重核对、MCP弹窗监控 | 与CC协作法律类写作时 |
 | [http-file-transfer](references/http-file-transfer.md) | 从云端到 Windows 的文件传输——SCP 在 Tailscale relay 下超时时的 HTTP 服务器兜底方案 | SCP/rsync 超时但 SSH 连通时 |
 | [cc-mcp-skill-dev-pattern](references/cc-mcp-skill-dev-pattern.md) | CC 开发依赖 MCP Server 的 Skill 的完整模式——mcp.json + settings.json 双文件配置、依赖安装、连通验证、MCP vs CLI 架构选择 | CC 构建需要外部 MCP 服务的 Skill 时 |
-| [github-deployment](references/github-deployment.md) | CC 从 Windows 端推送 GitHub 的阻塞点与工作流——凭证检查、无 gh CLI 时的应对、推荐推流 | CC 需要创建 GitHub 仓库或 git push 时 |\n|-----------|------|---------|\n| [batch-classification-hybrid](references/batch-classification-hybrid.md) | 大规模数据分类的"规则引擎+AI审核"混合模式——Python规则引擎批量分类+CC逐条审核不确定案例+JSON checkpoint续接+数据完整性验证 | CC 需要对数千条数据做分类/筛选/噪音分析时（微信群记录、日志、评论等） |
+| [github-deployment](references/github-deployment.md) | CC 从 Windows 端推送 GitHub 的阻塞点与工作流——凭证检查、无 gh CLI 时的应对、推荐推流 | CC 需要创建 GitHub 仓库或 git push 时 |
+| [batch-classification-hybrid](references/batch-classification-hybrid.md) | 大规模数据分类的"规则引擎+AI审核"混合模式——Python规则引擎批量分类+CC逐条审核不确定案例+JSON checkpoint续接+数据完整性验证 | CC 需要对数千条数据做分类/筛选/噪音分析时（微信群记录、日志、评论等） |
 | [acp_bootstrap.py](templates/acp_bootstrap.py) | ACP 快速引导脚本模板——直接复制运行，验证 SSH→ACP 全链路 | 首次部署或诊断 ACP 连通性时 |
 
 ## Research Workflow (v3.3, updated v3.32)
 
-When the user asks Hermes to research and evaluate external projects/skills/tools:
+当用户要求 Hermes 调研和评估外部项目/技能/工具时：
 
 ### Standard flow
 
 ```
-1. Hermes defines scope → composes task for CC
-2. CC clones repos / installs skills locally (Windows)
-3. CC reads SKILL.md + directory structures
-4. CC outputs analysis tables (per-project: purpose, deps, storage, compatibility)
-5. Hermes feeds additional web search results CC missed
-6. CC integrates new info → refine analysis
-7. Hermes ↔ CC discuss: cut/keep/integrate decisions
-8. CC outputs final plan document (markdown)
-9. Hermes presents to user for approval
+1. Hermes 定义范围 → 组装任务发给 CC
+2. CC 在本地（Windows）克隆仓库 / 安装技能
+3. CC 阅读 SKILL.md + 目录结构
+4. CC 输出分析表（按项目：用途、依赖、存储、兼容性）
+5. Hermes 补充 CC 遗漏的网络搜索结果
+6. CC 整合新信息 → 完善分析
+7. Hermes ↔ CC 讨论：裁剪/保留/集成决策
+8. CC 输出最终方案文档（markdown）
+9. Hermes 呈交用户审批
 ```
 
-### Pre-research workflow (when CC Web Search is down)
+### Pre-research workflow（CC Web Search 不可用时）
 
-When CC's Web Search is rate-limited or returns 0 results (common in plan mode), use this pattern instead:
+当 CC 的 Web Search 被限流或返回 0 结果（plan mode 下常见）时，改用此模式：
 
 ```
-1. Hermes does ALL web research itself (web_search + web_extract)
-2. Hermes compiles findings into a structured file on cloud (write_file)
-3. Hermes SCPs the file to Windows (scp → C:/Users/<Windows_用户名>/<file>.txt)
-4. Hermes sends short instruction: "读取 C:\Users\<Windows_用户名>\<file>.txt 并按其中任务要求执行。不要使用Web搜索。"
-5. CC reads the file, analyzes pre-supplied content, outputs conclusions
-6. Hermes reviews CC's output independently → sends质疑 back for R2 debate if needed
+1. Hermes 自行完成所有网络搜索（web_search + web_extract）
+2. Hermes 将搜索结果整理为结构化文件（write_file）
+3. Hermes 通过 SCP 传输文件到 Windows（scp → C:/Users/<Windows_用户名>/<file>.txt）
+4. Hermes 发送短指令："读取 C:\Users\<Windows_用户名>\<file>.txt 并按其中任务要求执行。不要使用Web搜索。"
+5. CC 读取文件，分析预提供的内容，输出结论
+6. Hermes 独立审核 CC 输出 → 必要时发回质疑进行 R2 辩论
 ```
 
-**Advantages**: Bypasses CC's broken Web Search entirely; CC focuses on analysis not searching; SCP avoids plan mode send-keys truncation (see Pitfall #68).
+**优势**：完全绕过 CC 不稳定的 Web Search；CC 专注分析而非搜索；SCP 避开了 plan mode 下 send-keys 截断问题（见 Pitfall #68）。
 
 **反面案例（2026-06-04）**：律所平台模板分析任务，CC 的 Web Search 连续返回 0 结果并进入重试循环（4次 × 0 searches），浪费 ~8 分钟 token。Hermes Escape 中断后改为预研究模式——自己搜索 5 个飞书官方模板 → 编译分析文件 → SCP → CC 在 30s 内完成分析。
 
-**Key rules for both workflows:**
-- CC does ALL local operations (git clone, npx install, file reads). Hermes NEVER clones to cloud.
-- Hermes does ALL web searches (CC's Web Search tool is unreliable — frequently returns 0 results).
-- ClawHub skills install via `npx clawhub@latest install <slug>`, NOT git clone.
-- After CC clones, Hermes sends additional info via SCP file or `[HERMES:INFO]` markers.
-- Discussion uses `[HERMES:DISCUSS]` for Hermes's proposed positions, CC debates back.
-- Final output is a plan document on CC's local disk; Hermes reads it via capture-pane.
+**两种工作流的共同规则：**
+- CC 负责所有本地操作（git clone、npx install、读取文件），Hermes 不在云端克隆
+- Hermes 负责所有网络搜索（CC 的 Web Search 工具不可靠——经常返回 0 结果）
+- ClawHub 技能通过 `npx clawhub@latest install <slug>` 安装，而非 git clone
+- CC 克隆完成后，Hermes 通过 SCP 文件或 `[HERMES:INFO]` 标记补充信息
+- 讨论使用 `[HERMES:DISCUSS]` 表达 Hermes 的主张，CC 回应辩论
+- 最终输出为 CC 本地磁盘上的方案文档，Hermes 通过 capture-pane 读取
 
 ## v2.1 协议升级（2026-06-02 辩论产出）
 
@@ -384,7 +386,7 @@ When CC's Web Search is rate-limited or returns 0 results (common in plan mode),
 0. **加载 skill 后未遵守其规则（2026-06-03 新增）**：加载了协作 skill 但继续用默认沟通方式与 CC 交互——不发状态摘要、不做两步空闲确认、消息内容不按协议格式。用户指出「你现在跟cc的对话都没有依照cc协作skill，我看到好多对话都不完整」。根因：skill_view 读取了协议内容但未在后续工具调用中严格遵守。**强制约束**：加载协作 skill 后发送第一条消息前，必须通过 checklist 确认：状态摘要 [state:...] 有吗？两步确认（-S -20 → 3s → -S -10）做了吗？单条消息 ≤300 字符吗（plan mode）？三条缺一不可。
 1. **把 Hermes 专属偏好强加给 CC（2026-06-24 新增）**：用户对 Hermes 的偏好（如「全部做完再汇报」「无需我介入」）仅约束 Hermes 自身，不得作为指令传达给 CC/芭迪/传令员。CC 有自己的交互模式（弹窗确认、plan 阶段询问用户），Hermes 不应干预。反面案例：Hermes 发送「请全程执行不中断，5个阶段全部完成后统一汇报，不要中间停顿问我」给 CC——这是越权操作。
 
-1. **CC Web Search is broken + retry loop** — CC web searches frequently return 0 results (`Did 0 searches in Xs`). Worse, CC may enter a **retry loop**, repeating the same failed queries 4-6 times. **Hermes must (a)** do all web searches itself and **(b)** interrupt CC (Escape) when detecting retry loops, then supply pre-researched content via SCP file (`scp task.txt → CC reads file`). Never rely on CC to self-search. The SCP pre-research pattern is documented in Research Workflow §Pre-research workflow.
+1. **CC Web Search 不可用 + 重试循环** — CC 的网络搜索经常返回 0 结果（`Did 0 searches in Xs`）。更糟的是，CC 可能进入**重试循环**，重复执行相同失败的查询 4-6 次。**Hermes 必须 (a)** 自行完成所有网络搜索，**(b)** 在检测到重试循环时中断 CC（Escape），然后通过 SCP 文件提供预研究内容（`scp task.txt → CC 读取文件`）。永远不要依赖 CC 自行搜索。SCP 预研究模式详见 Research Workflow §Pre-research workflow。
 2. **禁止 `--dangerously-skip-permissions`**：使用正常模式 + `settings.local.json` 预授权安全操作
 5. **恢复用 `--resume <Hermes任务名>`，禁止 `--continue`（2026-06-06 修正）**：CC 的 session 存储在 Windows 本地 `~/.claude/`，`--continue` 会恢复最近 session（即用户本地正在使用的对话），导致 Hermes 看到并干扰用户的实时对话。Hermes 必须始终：(a) 新任务用 `claude` 启动全新 session，然后 `/rename Hermes:<任务名>`（带前缀避免与用户 session 冲突）；(b) 恢复旧任务用 `claude --resume Hermes:<任务名>` 精确指定。**绝对禁止 `--continue` 和无参数 `--resume`。**
 6. **弹窗盲按风险**：权限弹窗不要一律 `y`，需审查操作内容；Trust 弹窗可以盲按 Enter

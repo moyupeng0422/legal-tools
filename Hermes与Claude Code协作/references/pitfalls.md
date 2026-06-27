@@ -794,14 +794,6 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
     
     **反面案例（2026-06-22）**：收到 CC 对知识库协作流程的 5 个缺口的分析后，Hermes 整理了结论直接汇报给用户（虽然附带了「我觉得合理」的分析），用户指出「你还没有与cc进行debate」。即使独立分析了，没有发回 CC 辩论再评估，还是传话。
 
-### #132. 讨论步骤纪律——先跟一个 Bot 充分讨论完再发下一个（2026-06-22 新增）
-
-132. **讨论步骤纪律——先跟一个 Bot 充分讨论完再发下一个（2026-06-22 新增）**：当任务需要与多个 Bot（CC、芭迪）讨论时，必须按顺序逐个讨论，**先跟一个充分辩论闭环后，再发下一个**。绝不在 CC 未回复/未闭环的情况下同时发芭迪。
-
-    **反面案例（2026-06-22）**：CC 第一条消息不带技能位置发出后，不等 CC 读完回复，就跳步发芭迪消息（还写了云端路径 `~/knowledge-base-collab-plan.md` 让芭迪本地读不到）。用户指出「你不应该先跟CC讨论完再说吗」。
-
-### #133. 发送任务给 CC/芭迪时必须包含本地技能文件路径（2026-06-22 新增）
-
 ### #135. CC PreToolUse hook 连续报错——文件操作本身成功（2026-06-27 新增）
 
 135. **CC PreToolUse hook 连续报错——文件操作本身成功（2026-06-27 新增）**：CC 的 `~/.claude/settings.json` 中配置了 PreToolUse hooks（如 `validate-memory-ask.ps1`、`validate-mcp.ps1`），每次 CC 执行 Write 或 Edit 工具调用时这些 hook 会运行并报错（`PreToolUse:Write hook error` / `PreToolUse:Edit hook error`）。**关键：文件操作本身全部成功，hook error 不影响功能。** 监控时看到此类错误不需要干预——这是 CC 侧 hook 脚本自身的问题（可能是脚本逻辑错误、依赖缺失、或 PowerShell 兼容性），不是 CC 工具调用的失败。**但需要注意**：连续的 hook error 会让监控中的 capture-pane 输出充满错误信息，可能淹没真正的工具调用输出。若 CC 正在部署新 hook（如 IM 同步方案），应先排查现有 hook error 原因，否则新 hook 的错误信号会被噪音淹没。排查方法：让 CC 检查 `settings.json` 中 PreToolUse hooks 的 `command` 和 `matcher`，逐个禁用测试定位问题 hook。
@@ -809,13 +801,6 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 ### #136. CC Stop hook stdin 不包含回复文本——需额外读 jsonl 尾部（2026-06-27 新增）
 
 136. **CC Stop hook stdin 不包含回复文本——需额外读 jsonl 尾部（2026-06-27 新增）**：当为 CC 构建 IM 同步方案时（方案 1：Hook 驱动），可能假设 Stop hook 的 stdin 包含 CC 最后一条 assistant 回复文本。**实际 stdin 只包含 `session_id` 和 `transcript_path`（jsonl 文件路径），不含消息内容。** 要获取 CC 的回复文本，hook 脚本必须：(a) 从 stdin 解析 transcript_path；(b) 读取该 jsonl 文件尾部；(c) 提取最后一条 `role: "assistant"` 消息的 `content` 字段；(d) 处理可能的 content 格式变体（纯字符串、数组含 text block）。**脚本复杂度远超 CC 最初估计的 ~50 行**——实际需要 150+ 行（含错误处理、编码处理、content 解析）。CC 在 IM 同步报告中将 Stop hook 方案设计为"stdin 直接读取回复文本"是概念错误。详见 `references/cc-hook-data-schemas.md`。
-
-133. **发送任务给 CC/芭迪时必须包含本地技能文件路径（2026-06-22 新增）**：当发送的任务需要对方了解特定技能/流程时，必须在消息中明确给出该技能的**本地实际文件路径**（Windows 绝对路径如 `D:\\\\claude vscode\\\\...`），不能依赖对方「已经知道」或给出云端路径。
-
-    **反面案例（2026-06-22，两次触发）**：
-    - 给 CC 发知识库流程审查消息时只说了「用户设计了一个流程」没给技能位置 → CC 的初步审查无意义
-    - 给芭迪发消息时写了云端路径 `~/knowledge-base-collab-plan.md` → 芭迪本地看不到
-    - 正确做法：`请先读 D:\\\\claude vscode\\\\法律相关skill自研仓库\\\\法律概念提取与建页\\\\SKILL.md`
 
 ### #137. CC 概念混淆——compact ≠ 索引压缩（2026-06-27 新增）
 
@@ -838,23 +823,3 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
    - **用户直接在 CC 输入框打字时继续监控**——不要因为看到用户在编辑输入就停止轮询。
 
    详见 `references/monitoring-debate.md` §10。
-
-133. **发送任务给 CC/芭迪时必须包含本地技能文件路径（2026-06-22 新增）**：当发送的任务需要对方了解特定技能/流程时，必须在消息中明确给出该技能的**本地实际文件路径**（Windows 绝对路径如 `D:\\claude vscode\\...`），不能依赖对方「已经知道」或给出云端路径。
-
-    **反面案例（2026-06-22，两次触发）**：
-    - 给 CC 发知识库流程审查消息时只说了「用户设计了一个流程」没给技能位置 → CC 的初步审查无意义
-    - 给芭迪发消息时写了云端路径 `~/knowledge-base-collab-plan.md` → 芭迪本地看不到
-    - 正确做法：`请先读 D:\\claude vscode\\法律相关skill自研仓库\\法律概念提取与建页\\SKILL.md`
-
-    **典型案例**：CC 说「Write/Edit 0 预授权 → 写文件会卡弹窗」，但实际桥 mode 下 `defaultAccess=full` 全局绕过了 settings.json，所有写文件畅通无阻。
-
-    **排查顺序**（事实优先于分析）：
-    ```
-    ① 实际验证：发一个写文件的任务，看 CC 是否真卡在弹窗上
-    ② bridge config：C:\Users\<Windows_用户名>\.lark-channel\config.json → permissions.defaultAccess
-    ③ settings.json：D:\claude vscode\.claude\settings.json → permissions.allow
-    ```
-
-    **适用场景**：任何涉及 CC 权限分析的讨论（P 模式风险、bypass、弹窗问题）。不要直接采纳 CC 的权限结论，先实际验证再下判断。
-
-    详见 feishu-agent-collab skill 的 references/credentials.md（凭据集中）和 badi-workflow.md（bridge 工作流）。
