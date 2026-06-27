@@ -11,19 +11,19 @@
 **完整流程**：
 ```
 1. Hermes 在云端写好素材/要求文件
-2. SCP 到 CC 本地：scp brief.md local-win:"C:/Users/HUAWEI/brief.md"
+2. SCP 到 CC 本地：scp brief.md <ssh-alias>:"<windows-userhome>/brief.md"
 3. 启动 CC（六步法）→ 发短指令引导：
-   - "读取 C:\Users\HUAWEI\brief.md"
-   - "进入 D:\claude vscode\法律相关skill自研仓库\社媒写作"
+   - "读取 <windows-userhome>\brief.md"
+   - "进入 <windows-project-root>\法律相关skill自研仓库\社媒写作"
    - "加载 SKILL.md，用 /style-write Full Mode"
 4. CC 自主加载 STYLE.md + 参考资料 → 写入本地 draft.md
-5. Hermes SCP 拉回：scp local-win:"C:/Users/HUAWEI/draft.md" /tmp/
+5. Hermes SCP 拉回：scp <ssh-alias>:"<windows-userhome>/draft.md" /tmp/
 6. Hermes 独立审查 → 发修改意见回 CC 或给用户
 ```
 
 **关键点**：
 - 素材走 SCP 文件，不走 tmux 消息（长素材在 plan mode/accept-edits 下必截断）
-- 社媒写作 skill 路径：`D:\claude vscode\法律相关skill自研仓库\社媒写作\`
+- 社媒写作 skill 路径：`<windows-project-root>\法律相关skill自研仓库\社媒写作\`
 - CC 在 plan mode 下写文件被 PreToolUse:Write hook 拦截 → 需切 accept edits 模式
 - CC 自动运行 6 门去 AI 味检查 + 10 项质量自检清单，Hermes 不需重复
 
@@ -33,7 +33,7 @@
 
 云端协作 skill 更新后，CC 侧的 `.claude/rules/hermes-collab.md` **不会自动同步**。涉及协议变更（如新增六步法、检查 #-1）时，需手动同步。
 
-CC 侧文档路径：`D:\claude vscode\.claude\rules\hermes-collab.md`
+CC 侧文档路径：`<windows-project-root>\.claude\rules\hermes-collab.md`
 
 同步方式：通过 CC session 直接 Edit，或 SCP 新版后让 CC 替换。
 
@@ -247,7 +247,7 @@ R2质询微调结构 → CC逐条核实条款编号 → R3定稿输出（5200字
 - 替代角度示例（CC 提供）：正面案例 walkthrough、管理视角（给 AI 写员工手册）、体验向（手机遥控 AI）
 - **Hermes 审查 CC 选题时的检查项**：(a) 与近 3 个月公众号文章角度是否重复 (b) 是否有更具新意的切入点 (c) 视觉元素是否足够丰富
 
-**对 CC 社媒写作 skill 的影响**：以上偏好应同步到 CC 本地的社媒写作 skill（`D:\claude vscode\法律相关skill自研仓库\社媒写作\STYLE.md`），特别是视觉元素密度要求。可通过 CC session 直接 Edit 同步。
+**对 CC 社媒写作 skill 的影响**：以上偏好应同步到 CC 本地的社媒写作 skill（`<windows-project-root>\法律相关skill自研仓库\社媒写作\STYLE.md`），特别是视觉元素密度要求。可通过 CC session 直接 Edit 同步。
 
 ---
 

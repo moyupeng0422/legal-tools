@@ -130,8 +130,8 @@ capture-pane 看到的内容分三个独立区域：
 > ⚠️ **这是协作中最高频的违规点（#89 #90 #48），已多次被纠正又反复再犯。每次启动或恢复 CC 会话前，必须严格按以下顺序执行，不可凭记忆省略任何一步。**
 
 ```
-Step 1  ssh local-win                          ← 先连 SSH，确认连通
-Step 2  cd /d "D:\项目目录"                     ← 进入项目目录（不是 C:\Users\HUAWEI！）
+Step 1  ssh <ssh-alias>                          ← 先连 SSH，确认连通
+Step 2  cd /d "D:\项目目录"                     ← 进入项目目录（不是 <windows-userhome>！）
 Step 3  claude --model glm-5.2             ← 正常模式启动
 Step 4  <!-- HERMES-ACTIVATE -->                ← 激活协作模式，等确认后继续
 Step 5  /rename Hermes:<任务名>                 ← 带前缀，capture-pane 确认命名成功
@@ -222,7 +222,7 @@ Hermes 比对 task_id + step 一致后才认为投递成功。30s 无 ACK 自动
    - **SSH pipe**（`cat file | ssh "powershell ..."`）→ 同样超时
    - **Python HTTP server + curl** → 成功（2.6MB 最终完成，耗时约 90s）
 
-   推荐方案：云端启动临时 HTTP 服务器（`python3 -m http.server 18888 --bind 0.0.0.0`），CC 用 `curl -s http://100.90.24.4:18888/file.tar.gz -o C:\Users\HUAWEI\file.tar.gz` 下载。HTTP 协议在低带宽高延迟链路上比 SCP 更健壮。
+   推荐方案：云端启动临时 HTTP 服务器（`python3 -m http.server <http-port> --bind 0.0.0.0`），CC 用 `curl -s http://<cloud-tailscale-ip>:<http-port>/file.tar.gz -o <windows-userhome>\file.tar.gz` 下载。HTTP 协议在低带宽高延迟链路上比 SCP 更健壮。
 
    详见 `references/bulk-file-transfer.md` 方向二。
 
@@ -324,8 +324,8 @@ When CC's Web Search is rate-limited or returns 0 results (common in plan mode),
 ```
 1. Hermes does ALL web research itself (web_search + web_extract)
 2. Hermes compiles findings into a structured file on cloud (write_file)
-3. Hermes SCPs the file to Windows (scp → C:/Users/HUAWEI/<file>.txt)
-4. Hermes sends short instruction: "读取 C:\Users\HUAWEI\<file>.txt 并按其中任务要求执行。不要使用Web搜索。"
+3. Hermes SCPs the file to Windows (scp → <windows-userhome>/<file>.txt)
+4. Hermes sends short instruction: "读取 <windows-userhome>\<file>.txt 并按其中任务要求执行。不要使用Web搜索。"
 5. CC reads the file, analyzes pre-supplied content, outputs conclusions
 6. Hermes reviews CC's output independently → sends质疑 back for R2 debate if needed
 ```
@@ -392,7 +392,7 @@ When CC's Web Search is rate-limited or returns 0 results (common in plan mode),
 9. **accept edits 阻塞**：capture-pane 看到 `⏵⏵ accept edits on` 时，paste-buffer 发送的长消息可能只收到最后一行（CC 只解析了最后一段文本）。处理优先级：
    1. `BTab`（Shift+Tab）→ 切换到 `⏸ plan mode on`，此模式下短 send-keys 正常工作。
    2. `Escape` → `Enter` → 尝试退出 accept edits 回到正常模式
-   3. **scp 文件绕过**：将长内容 scp 到 Windows（如 `/Users/HUAWEI/msg.txt`），用短 send-keys 让 CC `读取 C:\Users\HUAWEI\msg.txt`。绕过 paste-buffer 截断问题
+   3. **scp 文件绕过**：将长内容 scp 到 Windows（如 `<windows-userhome>/msg.txt`），用短 send-keys 让 CC `读取 <windows-userhome>\msg.txt`。绕过 paste-buffer 截断问题
    4. **最后手段**：`/exit` → 重新 `claude` 启动 → 再 paste-buffer。短 send-keys 不受 accept edits 影响，可用来发退出指令
 10. **传话陷阱**：与 CC 协作时，Hermes 必须用自己的判断逐条分析 CC 输出（同意/反驳/修正），给出独立结论。按主题归纳 CC 建议后转述仍被视为传话——用户期望独立思考后再汇报，而非切换格式转发。收到 CC 方案后第一反应必须是「这个方案有没有问题？」而非「CC 说了 X，你怎么看？」。详见 monitoring-debate.md §3.1。
 12. **CC 弹窗导航不可靠（数字键 ≠ 总有效，2026-06-25 修正）**：CC 的权限弹窗和 interview 表单导航并不可靠——按数字键后 `>` 光标**不一定移动到对应选项**。实测多次出现按 `2` + Enter 但 `>` 仍停在 option 1（弹窗未通过）。**正确流程**：① 按数字键或 Tab/Down 导航 ② **立即 capture-pane 验证 `>` 位置**（`>` 必须出现在目标选项行首）③ 确认移动后才按 Enter。若 `>` 未移动：补发 Down 直到 `>` 到位 → 再 Enter。**两拍法仍有效**（数字/Down 与 Enter 分开发送，间隔 ≥ 300ms），但增加了第②步验证。未生效时切勿重复按数字键+Enter（会重复排队），应 Ctrl+C 取消 → 等空闲 → 重发。
@@ -405,14 +405,14 @@ When CC's Web Search is rate-limited or returns 0 results (common in plan mode),
 
 27. **CC interview 表单禁止裸转发（v3.16 新增）**：CC plan mode 的 interview 表单（`Enter to select`、`↑/↓ to navigate`）列出选项时，**绝对禁止**把选项列表直接转发给用户问"你看选哪个"。这是最赤裸的传声筒——用户期望的是 Hermes 先做独立分析，判断每个选项的优劣，给出推荐理由，然后才让用户拍板。**2026-06-03 触发**：CC 询问 DOM 选择器方案（选项 1/2/3），Hermes 转发选项列表问用户，用户立即指出「不要当传话筒」。正确做法：独立分析 → 指出选项的利弊/可行性 → 给出明确推荐 → 附简要理由 → 然后让用户确认。如果某个选项涉及技术事实不确定（如需要 CC 自查），先把质疑发回 CC 澄清，澄清后再汇报用户。
 27. **Hermes 侧就近处理违规**：就近处理铁律是双向的。CC 提议「我帮你写一份完整的 XX 文件，可以直接粘贴到配置里」→ Hermes 不应接受。云端文件始终由 Hermes 自己写入，CC 只产出内容建议（对话中讨论即可）。处理方式：CC 若越界提议写云端文件 → 立即 C-c 取消 → 明确告诉 CC「这个文件在云端，应该 Hermes 来写，你产出规则内容到对话中即可」。
-28. **SSH 断连后 capture-pane 陷阱**：SSH 断开后 tmux session 回退到本地 bash，但 scrollback 中残留大量 CC 旧输出（方案、表格、提示符），致使 capture-pane 看起来 CC 还活着。判别方法：`tail -1` 看最后一行是不是 `$ ` 或 `>` —— 是 bash 则 SSH 已断，是 `>` 带 emoji 标记则 CC 运行中。恢复流程：先 `ssh -o ConnectTimeout=10 local-win "echo OK"` 确认 SSH 通 → tmux 内重新 `ssh local-win` → 进入 CC 工作目录 → `claude --continue` 恢复。切勿在断连的 session 内直接发 `<!-- HERMES-ACTIVATE -->`——bash 会把 `!` 当历史扩展报错。
+28. **SSH 断连后 capture-pane 陷阱**：SSH 断开后 tmux session 回退到本地 bash，但 scrollback 中残留大量 CC 旧输出（方案、表格、提示符），致使 capture-pane 看起来 CC 还活着。判别方法：`tail -1` 看最后一行是不是 `$ ` 或 `>` —— 是 bash 则 SSH 已断，是 `>` 带 emoji 标记则 CC 运行中。恢复流程：先 `ssh -o ConnectTimeout=10 <ssh-alias> "echo OK"` 确认 SSH 通 → tmux 内重新 `ssh <ssh-alias>` → 进入 CC 工作目录 → `claude --continue` 恢复。切勿在断连的 session 内直接发 `<!-- HERMES-ACTIVATE -->`——bash 会把 `!` 当历史扩展报错。
 33. **DISCUSS 优先于自动建议（用户强制规则）**：CC 在 `⏵⏵ accept edits on` 模式下生成的自动建议（如 `> 开始写 P1 代码`、`> 先验证...`），CC 会**优先执行自动建议**而忽略排队的 `[HERMES:DISCUSS]` 消息。**处理：capture-pane 看到 CC 执行工具调用（● Bash/Read 等），同时有 DISCUSS 排队（`Press up to edit queued messages`）→ 立即 `C-c` 打断。DISCUSS 已在队列中，打断后 CC 会自动处理下一条消息即 DISCUSS，无需重发。** 不打断则 CC 在错误方向浪费数分钟 token。用户明确要求（2026-06-02）：「以后遇到这种情况就先打断CC，让它先处理讨论，不然执行方向会有问题」。
 36. **空闲判断铁律（v3.8 新增）**：CC pane 有三个独立区域——①输入框上方（emoji 标记 ✶/✽/✻/✢/· 等，有=thinking，无=空闲）；②输入框（`>` 提示符）；③底部状态栏（左侧=UI 模式，右侧=X% until auto-compact）。**空闲只看区域①，不看区域③。** accept edits、plan mode、normal mode 只是 UI 模式，只要有 emoji 标记就不是空闲，没有就是空闲。accept edits 模式下的限制是发送方式（用短 send-keys 不用 paste-buffer），不是不可发送。不要混淆"发送方式受限"和"不可发送"。
 42. **accept edits 模式可能完全阻塞所有 send-keys（v3.10 新增→v3.42 修正→v3.43 新增预防）**：实测发现 accept edits 模式下不仅是 paste-buffer 被截断，**所有 send-keys 都可能被 CC 吞掉**——包括 BTab、Escape、C-c、/exit、普通短消息。pane 看起来有 `>` 提示符处于空闲，实际完全不响应。
 
    **⚠️ 区分两种行为模式（2026-06-10 新增）**：
    - **延迟排队**（更常见）：send-keys 不是被吞，而是排队延迟送达——可能延迟 30s~数分钟后才出现在输入框中。判别信号：CC 当前正 busy（有 emoji/thinking 标记）时发的 send-keys 会在 CC 空闲后逐条出现。**处理**：不要重复发送同一指令（会导致重复排队），耐心等待 CC 完成当前操作后再检查输入框。
-   - **完全阻塞**（少见但严重）：CC 空闲但仍不响应任何输入。判别信号：连续 3 次 send-keys 后 capture-pane 无任何变化（输入框无回显、状态栏不变）→ 确认为阻塞。**推荐恢复路径（按优先级）**：1. **核弹选项（最快最可靠）**：直接 `tmux kill-session -t claude-session` 杀掉整个 tmux session → `tmux new-session -d -s claude-session -x 200 -y 60` 重建 → SSH → cd → `claude --model glm-5.2` → 激活四步法。用户明确建议：「直接杀了tmux重进就行了」——比在阻塞 session 中尝试各种恢复命令快得多。2. 轻度尝试：C-c 暴力连发 3 次 → 等 1s → Escape → Enter。3. SSH 断连检查：`ssh -o ConnectTimeout=10 local-win echo OK`。SSH 断 + accept edits 阻塞 是双重故障模式，需先恢复 SSH 再处理 CC。**注意：accept edits 并非总是完全阻塞——见陷阱 43。**
+   - **完全阻塞**（少见但严重）：CC 空闲但仍不响应任何输入。判别信号：连续 3 次 send-keys 后 capture-pane 无任何变化（输入框无回显、状态栏不变）→ 确认为阻塞。**推荐恢复路径（按优先级）**：1. **核弹选项（最快最可靠）**：直接 `tmux kill-session -t claude-session` 杀掉整个 tmux session → `tmux new-session -d -s claude-session -x 200 -y 60` 重建 → SSH → cd → `claude --model glm-5.2` → 激活四步法。用户明确建议：「直接杀了tmux重进就行了」——比在阻塞 session 中尝试各种恢复命令快得多。2. 轻度尝试：C-c 暴力连发 3 次 → 等 1s → Escape → Enter。3. SSH 断连检查：`ssh -o ConnectTimeout=10 <ssh-alias> echo OK`。SSH 断 + accept edits 阻塞 是双重故障模式，需先恢复 SSH 再处理 CC。**注意：accept edits 并非总是完全阻塞——见陷阱 43。**
 
 
 

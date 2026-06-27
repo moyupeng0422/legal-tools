@@ -6,17 +6,17 @@
 
 | 节点 | IP | 说明 |
 |------|-----|------|
-| 云端 Ubuntu（Hermes 运行处） | `100.90.24.4` | Hermes 主机，非 Windows |
-| Windows 笔记本（CC 运行处） | `100.107.207.104` | CC 本地机器 |
+| 云端 Ubuntu（Hermes 运行处） | `<cloud-tailscale-ip>` | Hermes 主机，非 Windows |
+| Windows 笔记本（CC 运行处） | `<windows-tailscale-ip>` | CC 本地机器 |
 
-⚠️ **常见混淆**：`ssh -p 2222 100.90.24.4` 实际是回到云端自己，**不是**连 Windows。Windows 必须用 `ssh -p 2222 HUAWEI@100.107.207.104`。
+⚠️ **常见混淆**：`ssh -p <ssh-port> <cloud-tailscale-ip>` 实际是回到云端自己，**不是**连 Windows。Windows 必须用 `ssh -p <ssh-port> <ssh-user>@<windows-tailscale-ip>`。
 
 ## SSH 配置
 
-- **Alias**: `local-win`（在 `~/.ssh/config` 中定义）
+- **Alias**: `<ssh-alias>`（在 `~/.ssh/config` 中定义）
 - **端口**: `2222`
-- **用户**: `HUAWEI`
-- **快速连通测试**: `ssh -o ConnectTimeout=10 local-win "echo OK"`
+- **用户**: `<ssh-user>`
+- **快速连通测试**: `ssh -o ConnectTimeout=10 <ssh-alias> "echo OK"`
 
 ## tmux Session
 
@@ -30,8 +30,8 @@
 
 | 端 | Endpoint | 来源 |
 |----|---------|------|
-| **CC**（本地 Windows Claude Code） | `https://open.bigmodel.cn/api/anthropic` | `~/.claude/settings.json` 的 `ANTHROPIC_BASE_URL` |
-| **Hermes**（云端 Ubuntu） | `https://open.bigmodel.cn/api/coding/paas/v4` | Hermes `config.yaml`（Coding Plan API） |
+| **CC**（本地 Windows Claude Code） | `<api-endpoint-anthropic>` | `~/.claude/settings.json` 的 `ANTHROPIC_BASE_URL` |
+| **Hermes**（云端 Ubuntu） | `<api-endpoint-coding>` | Hermes `config.yaml`（Coding Plan API） |
 
 ## 模型配置
 
@@ -49,12 +49,12 @@
 
 ## Windows 关键路径
 
-- **用户目录**: `C:\Users\HUAWEI\`
-- **项目根**: `D:\claude vscode\`
-- **Claude 配置**: `C:\Users\HUAWEI\.claude\`（全局）/ `D:\claude vscode\.claude\`（项目）
-- **CC 协作 context**: `D:\claude vscode\.claude\rules\hermes-collab.md`（CC 自动加载）
-- **Bridge 配置**（CC 飞书接入）: `C:\Users\HUAWEI\.lark-channel\config.json`
-- **临时文件中转**: `C:\Users\HUAWEI\temp.md`（SSH 中文路径乱码时的 ASCII workaround）
+- **用户目录**: `<windows-userhome>\`
+- **项目根**: `<windows-project-root>\`
+- **Claude 配置**: `<windows-userhome>\.claude\`（全局）/ `<windows-project-root>\.claude\`（项目）
+- **CC 协作 context**: `<windows-project-root>\.claude\rules\hermes-collab.md`（CC 自动加载）
+- **Bridge 配置**（CC 飞书接入）: `<windows-userhome>\.lark-channel\config.json`
+- **临时文件中转**: `<windows-userhome>\temp.md`（SSH 中文路径乱码时的 ASCII workaround）
 
 ## 状态文件
 
@@ -66,8 +66,8 @@
 
 ```bash
 # 云端 tmux 内执行
-ssh local-win                              # 1. SSH 连接
-cd /d "D:\claude vscode"                   # 2. 切换到项目目录（不是 home）
+ssh <ssh-alias>                              # 1. SSH 连接
+cd /d "<windows-project-root>"                   # 2. 切换到项目目录（不是 home）
 claude --model glm-5.2                     # 3. 启动 CC（禁止 --dangerously-skip-permissions）
 # Bypass Permissions 警告弹窗：1=No exit / 2=Yes accept
 # 后续：HERMES-ACTIVATE → /rename Hermes:<任务名> → 写 task_map

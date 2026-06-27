@@ -102,17 +102,17 @@ for N in 1..7:
 | K条目ID格式 | 2种 | 纯数字1-144 + K145+前缀 |
 | K条目时间格式 | 6+种 | HH:MM, HH:MM-SS, HH:MM,SS, MM-DD HH:MM, HH:MM~HH:MM 等 |
 | E条目行号格式 | 3种 | 单行号/范围/逗号分隔多范围 |
-| 输出文件 | 6,951行 | `D:\tmp\法律AI加油站_最终筛选记录.md`，60批次 |
+| 输出文件 | 6,951行 | `<windows-tmp>\法律AI加油站_最终筛选记录.md`，60批次 |
 
 ## 技术细节
 
 **glob 绕过中文编码**：SSH 传 Python 脚本时，中文路径可能编码错误。
 ```python
 # 不可靠
-open(r'D:\tmp\法律AI加油站_过滤后.md', encoding='utf-8')
+open(r'<windows-tmp>\法律AI加油站_过滤后.md', encoding='utf-8')
 # 可靠
 import glob
-files = glob.glob(r'D:\tmp\*人工筛选*.md')
+files = glob.glob(r'<windows-tmp>\*人工筛选*.md')
 ```
 
 **sender 宽松匹配的假遗漏陷阱**：宽松匹配（startswith）虽然能处理名称缩写差异，但会导致**大量假遗漏**——已保留的消息被匹配失败，重新标为"需补做"。实测：patch_missing.py 用宽松匹配产出 2132 条遗漏，但 verify_completeness.py 用精确行号匹配确认只有 1700 条真遗漏，差值 ~432 条全是假遗漏。
@@ -275,8 +275,8 @@ CC 人工筛选的保留条目，内容摘要列经常写 `(见原记录)` 而�
 Windows 上 CC 进程持有的文件锁定在 `/exit` 后可能仍不释放。**不要花时间排查锁定原因，直接用新文件名**：
 ```bash
 # final_complete.py 被锁定 → 用 final_merge_v2.py
-scp -o ConnectTimeout=10 /tmp/final_merge_v2.py local-win:D:/tmp/final_merge_v2.py
-ssh local-win "python -u D:\tmp\final_merge_v2.py"
+scp -o ConnectTimeout=10 /tmp/final_merge_v2.py <ssh-alias>:<windows-tmp>/final_merge_v2.py
+ssh <ssh-alias> "python -u <windows-tmp>\final_merge_v2.py"
 ```
 
 #### 远程 Python 脚本执行模式
@@ -285,8 +285,8 @@ ssh local-win "python -u D:\tmp\final_merge_v2.py"
 ```bash
 # 标准循环：写本地 → SCP → 执行 → 查看输出 → 修改 → 重试
 write_file('/tmp/merge_v3.py', code)
-scp /tmp/merge_v3.py local-win:D:/tmp/merge_v3.py
-ssh local-win "python -u D:\tmp\merge_v3.py"
+scp /tmp/merge_v3.py <ssh-alias>:<windows-tmp>/merge_v3.py
+ssh <ssh-alias> "python -u <windows-tmp>\merge_v3.py"
 # 输出直接返回到 Hermes terminal
 ```
 
@@ -380,6 +380,6 @@ for line in parts:
 1. CC 编写 `analyze_chat.py`（200-250 行）
 2. CC 执行脚本 → 输出统计摘要到控制台 + 完整数据到 `analysis_data.json`
 3. CC 读取 `analysis_data.json` → 基于数据生成最终分析报告
-4. CC 将报告写入 `D:\tmp\法律AI加油站_内容分析报告.md`
+4. CC 将报告写入 `<windows-tmp>\法律AI加油站_内容分析报告.md`
 
 **优势**：(a) 确定性统计，关键词计数准确 (b) 不占 CC context (c) 链接/附件逐条提取无遗漏 (d) 可重复执行验证结果。

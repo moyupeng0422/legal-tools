@@ -10,8 +10,8 @@ plan mode's option-4 text input.
 ## Solution: SCP File Transfer
 
 1. Write review feedback to a local file (`/tmp/hermes-plan-reviewN.md`)
-2. SCP to Windows: `scp -P 2222 /tmp/file.md HUAWEI@local-win:"C:/Users/HUAWEI/file.md"`
-3. Send CC a short instruction to read the file: "读 C:\Users\HUAWEI\file.md，这是 Hermes 第 N 轮审查意见"
+2. SCP to Windows: `scp -P 2222 /tmp/file.md <ssh-user>@<ssh-alias>:"<windows-userhome>/file.md"`
+3. Send CC a short instruction to read the file: "读 <windows-userhome>\file.md，这是 Hermes 第 N 轮审查意见"
 4. Verify delivery with `capture-pane` before proceeding
 
 ### Option-4 Input Quirk

@@ -35,9 +35,9 @@
 | `<windows-tailscale-ip>` | Windows 的 Tailscale IP | `100.x.x.x` |
 | `<windows-public-ip>` | Windows 的公网 IP | `x.x.x.x` |
 | `<ssh-port>` | SSH 监听端口 | `2222` |
-| `<ssh-alias>` | `~/.ssh/config` 中的 Host 别名 | `local-win` |
+| `<ssh-alias>` | `~/.ssh/config` 中的 Host 别名 | `<ssh-alias>` |
 | `<ssh-user>` | Windows SSH 登录用户名 | `your-username` |
-| `<http-port>` | 临时 HTTP 文件服务端口 | `18888` |
+| `<http-port>` | 临时 HTTP 文件服务端口 | `<http-port>` |
 | `<windows-userhome>` | Windows 用户目录 | `C:\Users\yourname` |
 | `<windows-project-root>` | 项目根目录 | `D:\your-project` |
 | `<api-endpoint-anthropic>` | CC 的 Anthropic 兼容 API 端点 | 由你的 AI 服务商提供 |
