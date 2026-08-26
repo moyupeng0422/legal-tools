@@ -120,45 +120,46 @@ def format_case_detail(data: dict[str, Any], sections: list[str] | None = None) 
 
 
 def format_statistics(
-    total_data: dict[str, Any],
-    keyword_data: list | None = None,
-    year_data: list | None = None,
+    type_data: list | dict,       # cpwsAlTypeNextLeftCluster
+    sort_data: list | dict,       # sortNextLeftCluster
+    keyword_data: list | dict,    # keywordNextLeftCluster
+    fyjb_data: list | dict,       # fyjbNextLeftCluster（法院级别）
+    slfy_data: list | dict,       # slfyNextLeftCluster（受理法院）
+    slcx_data: list | dict,       # slcxNextLeftCluster（审理程序）
+    year_data: list | dict,       # yearNextLeftCluster
 ) -> str:
-    """格式化统计信息为 Markdown"""
-    lines = ["## 案例库统计\n"]
+    """格式化 6 维度统计信息为 Markdown"""
+    lines = ["## 案例库多维度统计\n"]
 
-    # 类型分布
-    type_items = total_data.get("data", [])
-    if type_items:
-        lines.append("### 类型分布\n")
-        lines.append("| 类型 | 数量 |")
-        lines.append("|------|------|")
-        total = 0
-        for item in type_items:
-            label = TYPE_LABELS.get(item.get("key", ""), item.get("value", ""))
-            count = item.get("intCount", 0)
-            lines.append(f"| {label} | {count} |")
-            total += count
-        lines.append(f"| **合计** | **{total}** |")
+    def _items(data):
+        """统一提取列表，兼容 list 和 dict 格式"""
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and "error" not in data:
+            return data.get("data", data)
+        return []
+
+    def _show_table(title: str, items: list, key_label: str, limit: int = 10):
+        """通用表格渲染"""
+        items = _items(items)
+        if not items:
+            return
+        lines.append(f"### {title}\n")
+        lines.append(f"| {key_label} | 数量 |")
+        lines.append("|" + "---|" * 2)
+        for item in items[:limit]:
+            k = item.get("value", item.get("key", item.get("id", "-")))
+            c = item.get("intCount", item.get("count", 0))
+            lines.append(f"| {k} | {c} |")
         lines.append("")
 
-    # 关键词聚类
-    if keyword_data:
-        lines.append("### 关键词分布（Top 10）\n")
-        lines.append("| 关键词 | 数量 |")
-        lines.append("|--------|------|")
-        for item in keyword_data[:10]:
-            lines.append(f"| {item.get('value', '-')} | {item.get('intCount', item.get('count', '-'))} |")
-        lines.append("")
-
-    # 年份聚类
-    if year_data:
-        lines.append("### 审判年份分布\n")
-        lines.append("| 年份 | 数量 |")
-        lines.append("|------|------|")
-        for item in year_data[:10]:
-            lines.append(f"| {item.get('value', '-')} | {item.get('intCount', item.get('count', '-'))} |")
-        lines.append("")
+    _show_table("案例类型", type_data, "类型", 5)
+    _show_table("关键词聚类", keyword_data, "关键词", 15)
+    _show_table("年份分布", year_data, "年份", 12)
+    _show_table("法院级别", fyjb_data, "级别", 8)
+    _show_table("审理法院", slfy_data, "法院", 12)
+    _show_table("审理程序", slcx_data, "程序", 8)
+    _show_table("案由/罪名分布", sort_data, "案由", 15)
 
     return "\n".join(lines)
 

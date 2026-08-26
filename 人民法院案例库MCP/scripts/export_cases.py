@@ -19,7 +19,8 @@ from export_formatter import format_obsidian_case, classify_ip_type
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-DEFAULT_OUTPUT_DIR = os.environ.get("EXPORT_DIR", "")
+# 导出目录：优先 .env 的 EXPORT_DIR（公开仓库不含本地路径，留空则导出到运行目录）
+DEFAULT_OUTPUT_DIR = os.getenv("EXPORT_DIR", "")
 
 
 async def fetch_all_cases(

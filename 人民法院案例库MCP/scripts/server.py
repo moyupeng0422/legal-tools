@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import sys
 
 from mcp.server.fastmcp import FastMCP
@@ -35,6 +36,53 @@ def _handle_error(e: Exception) -> str:
     if "SSL" in str(e) or "Certificate" in str(e):
         return f"网络错误: {e}"
     return f"错误: {type(e).__name__}: {e}"
+
+
+def _compute_exp_info(token: str, prefix: str = "") -> str:
+    """解析 JWT exp，返回 Token 有效期剩余信息。
+
+    Args:
+        token: JWT 字符串。
+        prefix: 返回字符串的前缀（set_token 场景用 "\\n"，check_token 场景用 ""）。
+
+    Returns:
+        有效期描述；token 无效或解析失败时返回空串。
+    """
+    if not token or "." not in token:
+        return ""
+    parts = token.split(".")
+    if len(parts) != 3:
+        return ""
+    try:
+        payload = parts[1] + "=" * (4 - len(parts[1]) % 4)
+        decoded = json.loads(base64.urlsafe_b64decode(payload))
+        import time
+
+        exp_ts = decoded.get("exp", 0)
+        if not exp_ts:
+            return ""
+        remaining = exp_ts - time.time()
+        if remaining > 0:
+            return (
+                f"{prefix}Token 有效期剩余: 约 {int(remaining / 3600)} 小时 "
+                f"{int((remaining % 3600) / 60)} 分钟"
+            )
+        return f"{prefix}⚠️ Token 已过期"
+    except Exception:
+        return ""
+
+
+_LOGIN_LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "login.log")
+
+
+def _tail_login_log(max_chars: int = 1500) -> str:
+    """读取 login.log 尾部内容（供 auto_login 工具回显）。"""
+    try:
+        with open(_LOGIN_LOG_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+        return content[-max_chars:]
+    except Exception as e:
+        return f"(读取 login.log 失败: {e})"
 
 
 @mcp.tool(
@@ -114,7 +162,9 @@ async def get_case(params: CaseDetailInput) -> str:
     """
     try:
         result = await client.post("cpwsAl/content", {"gid": params.case_id})
-        case_data = result.get("data", {})
+        raw_data = result.get("data", {})
+        # API 响应嵌套：data → data（isCanBrowse + 真实 data）
+        case_data = raw_data.get("data", raw_data) if isinstance(raw_data, dict) else raw_data
         return format_case_detail(case_data, params.sections)
     except Exception as e:
         return _handle_error(e)
@@ -131,54 +181,49 @@ async def get_case(params: CaseDetailInput) -> str:
     },
 )
 async def get_statistics(params: StatisticsInput) -> str:
-    """获取案例库统计信息，包括案例类型分布、关键词聚类和年份分布。
+    """获取案例库多维度统计信息。
 
-    可选传入关键词获取特定搜索结果的统计数据。
+    搜索关键词可选。传入 keyword 后统计结果会限定在关键词搜索结果内。
+    支持 6 个维度的聚类分析，返回完整的左栏筛选面板数据。
 
     Args:
         params: 统计参数，keyword 可选。
 
     Returns:
-        Markdown 格式的统计报告。
+        Markdown 格式的多维度统计报告。
     """
     try:
-        base_body = None
+        # 构建基础搜索参数
+        sp = {"lib": "cpwsAl_qb", "selectValue": ["qw"], "isAdvSearch": "0", "sort_field": "cjsj"}
         if params.keyword:
-            base_body = {
-                "page": 1, "size": 1, "lib": "qb",
-                "searchParams": {
-                    "userSearchType": 1, "isAdvSearch": "0",
-                    "selectValue": ["qw"], "lib": "cpwsAl_qb",
-                    "sort_field": "", "keyTitle": [params.keyword],
-                },
-            }
+            sp["keyTitle"] = [params.keyword]
+            sp["isAdvSearch"] = "1"
+        
+        base_body = {"page": 1, "size": 10, "lib": "qb", "searchParams": sp}
 
-        type_body = base_body or {
-            "page": 1, "size": 1, "lib": "qb",
-            "searchParams": {
-                "userSearchType": 1, "isAdvSearch": "0",
-                "selectValue": ["qw"], "lib": "cpwsAl_qb",
-                "sort_field": "", "keyTitle": [""],
-            },
-        }
+        # 并发请求 6 个聚类端点（除 sortNextLeftCluster 之外都传 pdh="0"）
+        import asyncio
+        c = client
+        results = await asyncio.gather(
+            c.post("cpwsAl/cpwsAlTypeNextLeftCluster", base_body),                    # 0: 案例类型
+            c.post("cpwsAl/sortNextLeftCluster", {**base_body, "pdh": "0"}),          # 1: 案由
+            c.post("cpwsAl/keywordNextLeftCluster", {**base_body, "pdh": "0"}),       # 2: 关键词
+            c.post("cpwsAl/fyjbNextLeftCluster", {**base_body, "pdh": "0"}),          # 3: 法院级别
+            c.post("cpwsAl/slfyNextLeftCluster", {**base_body, "pdh": "0"}),          # 4: 受理法院
+            c.post("cpwsAl/slcxNextLeftCluster", {**base_body, "pdh": "0"}),          # 5: 审理程序
+            c.post("cpwsAl/yearNextLeftCluster", {**base_body, "pdh": "0"}),          # 6: 年份
+            return_exceptions=True,
+        )
 
-        total_result = await client.post("cpwsAl/cpwsAlTypeNextLeftCluster", type_body)
+        # 解析结果（保留异常信息以便调试）
+        parsed = []
+        for r in results:
+            if isinstance(r, Exception):
+                parsed.append({"error": str(r)[:100]})
+            else:
+                parsed.append(r.get("data", []))
 
-        keyword_data = None
-        year_data = None
-        if base_body:
-            try:
-                kw_result = await client.post("cpwsAl/keywordNextLeftCluster", {**base_body, "pdh": 1})
-                keyword_data = kw_result.get("data", [])
-            except Exception:
-                pass
-            try:
-                yr_result = await client.post("cpwsAl/yearNextLeftCluster", {**base_body, "pdh": 1})
-                year_data = yr_result.get("data", [])
-            except Exception:
-                pass
-
-        return format_statistics(total_result, keyword_data, year_data)
+        return format_statistics(*parsed)
     except Exception as e:
         return _handle_error(e)
 
@@ -257,7 +302,8 @@ async def get_enum(params: EnumInput) -> str:
         return _handle_error(e)
 
 
-DEFAULT_EXPORT_DIR = os.environ.get("EXPORT_DIR", "")
+# 导出目录：优先 .env 的 EXPORT_DIR（公开仓库不含本地路径，留空则导出到运行目录）
+DEFAULT_EXPORT_DIR = os.getenv("EXPORT_DIR", "")
 
 
 @mcp.tool(
@@ -486,27 +532,77 @@ async def set_token(params: SetTokenInput) -> str:
         if phone and len(phone) > 4:
             phone = phone[:3] + "****" + phone[-4:]
 
-        exp_info = ""
-        try:
-            parts = params.token.split(".")
-            if len(parts) == 3:
-                payload = parts[1] + "=" * (4 - len(parts[1]) % 4)
-                decoded = json.loads(base64.urlsafe_b64decode(payload))
-                import time
-                exp_ts = decoded.get("exp", 0)
-                if exp_ts:
-                    remaining = exp_ts - time.time()
-                    if remaining > 0:
-                        exp_info = f"\nToken 有效期剩余: 约 {int(remaining / 3600)} 小时 {int((remaining % 3600) / 60)} 分钟"
-                    else:
-                        exp_info = "\n⚠️ Token 已过期"
-        except Exception:
-            pass
+        exp_info = _compute_exp_info(params.token, prefix="\n")
 
         return f"Token 设置成功！\n用户ID: {user_data.get('userId', '-')}\n手机号: {phone}{exp_info}"
     except Exception as e:
         client.set_token("")
         return f"Token 设置失败: {e}\n请检查 Token 是否正确，从浏览器 Cookie 中获取 faxin-cpws-al-token 的值。"
+
+
+@mcp.tool(
+    name="rmfyalk_auto_login",
+    annotations={
+        "title": "自动登录（Playwright）",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def auto_login() -> str:
+    """使用 .env 中的账号密码，自动登录人民法院案例库并更新 Token。
+
+    无需手动复制粘贴 Token，Playwright 会自动打开浏览器完成 OAuth 登录流程，
+    提取 Token 后写入 .env 和 tokens.json。注意浏览器会弹窗（有头模式），
+    这是正常现象。
+
+    前置条件：
+    - 已在 .env 中配置 RMFYALK_USERNAME 和 RMFYALK_PASSWORD
+
+    Returns:
+        登录结果和 Token 状态信息。
+    """
+    # 2026-08-26：subprocess 改为同进程直调——
+    # ① 修复子 agent 环境浏览器不弹出（MCP 子进程/窗口站隔离）；
+    # ② 修复 communicate() 等不到 EOF 的 300s 超时（孙进程句柄继承）。
+    # 同进程直调时禁止 login_rmfyalk 的日志写 stdout（stdio 模式会污染协议流），
+    # 日志仍写 login.log 文件，供 _tail_login_log 回显。
+    os.environ["RMFYALK_LOG_STREAM"] = "0"
+
+    try:
+        import login_rmfyalk
+    except Exception as e:
+        return f"❌ 自动登录异常: 无法导入 login_rmfyalk: {type(e).__name__}: {e}"
+
+    try:
+        # login_rmfyalk.auto_login 是 async 函数，可直接 await（有头模式）
+        success = await login_rmfyalk.auto_login(headless=False)
+    except Exception as e:
+        log_tail = _tail_login_log()
+        return (
+            f"❌ 自动登录异常: {type(e).__name__}: {e}\n\n"
+            f"--- 登录日志（尾部）---\n{log_tail}\n"
+            f"登录日志文件: login.log"
+        )
+
+    if success:
+        # 登录脚本已写入 tokens.json，同步到内存并验证新 token
+        client._sync_from_tokens_json()
+        token_status = await check_token()
+        log_tail = _tail_login_log(max_chars=1000)
+        return (
+            f"✅ 自动登录成功！\n\n"
+            f"--- 登录日志（尾部）---\n{log_tail}\n"
+            f"--- Token 状态 ---\n{token_status}"
+        )
+    else:
+        log_tail = _tail_login_log()
+        return (
+            f"❌ 自动登录失败\n\n"
+            f"--- 登录日志（尾部）---\n{log_tail}\n"
+            f"登录日志文件: login.log"
+        )
 
 
 @mcp.tool(
@@ -525,35 +621,45 @@ async def check_token() -> str:
     Returns:
         Token 状态信息：是否有效、过期时间、用户身份。
     """
+    # 2026-08-26 修复：先同步 tokens.json 的最新 token（auto_login/手动登录
+    # 写入的新 token），避免与内存旧 token 混用导致回显自相矛盾。
+    client._sync_from_tokens_json()
+
     if not client.token:
         return "⚠️ 未设置 Token。请先使用 rmfyalk_set_token 工具设置 Token。\n获取方式：登录 rmfyalk.court.gov.cn → 浏览器开发者工具 → Application → Cookies → 复制 faxin-cpws-al-token 的值。"
 
-    exp_info = ""
     try:
-        parts = client.token.split(".")
-        if len(parts) == 3:
-            payload = parts[1] + "=" * (4 - len(parts[1]) % 4)
-            decoded = json.loads(base64.urlsafe_b64decode(payload))
-            import time
-            exp_ts = decoded.get("exp", 0)
-            if exp_ts:
-                remaining = exp_ts - time.time()
-                if remaining > 0:
-                    exp_info = f"有效期剩余: 约 {int(remaining / 3600)} 小时 {int((remaining % 3600) / 60)} 分钟"
-                else:
-                    exp_info = "⚠️ Token 已过期"
-    except Exception:
-        pass
-
-    try:
+        # 先验证：post 内部会再次同步 tokens.json 并处理 401 重试
         result = await client.post("user/getUserInfo", {"state": ""})
         user_data = result.get("data", {})
+        # exp 计算放在验证成功之后，用验证时实际生效的 token（杜绝新旧混用）
+        exp_info = _compute_exp_info(client.token)
         return f"✅ Token 有效\n用户ID: {user_data.get('userId', '-')}\n{exp_info}"
     except TokenExpiredError:
+        exp_info = _compute_exp_info(client.token)
         return f"❌ Token 已失效\n{exp_info}\n请使用 rmfyalk_set_token 更新 Token。"
     except Exception as e:
+        exp_info = _compute_exp_info(client.token)
         return f"❌ 验证失败: {e}\n{exp_info}"
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import asyncio
+    import sys
+
+    # Windows 控制台 UTF-8 编码
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+    async def main():
+        """启动 MCP server（无保活，按需登录）。"""
+        # 不再启动保活任务 → 改为按需调用 rmfyalk_auto_login
+        if sys.stdin.isatty():
+            # 手动终端启动 → streamable-http（绑定端口 18061）
+            await mcp.run_streamable_http_async()
+        else:
+            # CC stdio 启动 → 自动管理生命周期
+            await mcp.run_stdio_async()
+
+    asyncio.run(main())

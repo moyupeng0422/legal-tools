@@ -314,48 +314,63 @@ POST /cpwsAl/content
 
 ## 六、聚类/统计 API
 
-### 类型统计
-
-```
-POST /cpwsAl/cpwsAlTypeNextLeftCluster
-```
-
-返回指导性/参考案例各有多少条。
+所有聚类端点共用请求格式（POST JSON）：
 
 ```json
-{
-  "code": 0,
-  "data": [
-    {"key": "01", "value": "指导性案例", "count": "21", "intCount": 21},
-    {"key": "02", "value": "参考案例", "count": "396", "intCount": 396}
-  ]
-}
+{"page": 1, "size": 10, "lib": "qb",
+ "searchParams": {"lib": "cpwsAl_qb", "selectValue": ["qw"]},
+ "pdh": "0"}
 ```
 
-### 关键词聚类
+> ⚠️ `pdh` 必须在 JSON 根级别，不在 searchParams 内。
+> 缺少 `pdh` 参数时 sortNextLeftCluster 等 4 个端点返回空数组 `[]`。
+
+传入 `searchParams.keyTitle/keyContent` 可将统计限定在关键词搜索结果内。
+
+### 端点清单
+
+| 端点 | 说明 | 需要 pdh |
+|------|------|:--------:|
+| `cpwsAlTypeNextLeftCluster` | 案例类型（指导性/参考案例分布） | ❌ 不需要 |
+| `keywordNextLeftCluster` | 关键词聚类 | ✅ 建议加 |
+| `yearNextLeftCluster` | 年份分布 | ✅ 建议加 |
+| `sortNextLeftCluster` | 案由/罪名聚类 | ✅ **必须** |
+| `fyjbNextLeftCluster` | 法院级别聚类 | ✅ **必须** |
+| `slfyNextLeftCluster` | 受理法院聚类 | ✅ **必须** |
+| `slcxNextLeftCluster` | 审理程序聚类 | ✅ **必须** |
+
+### 响应格式（统一）
+
+```json
+{"code": 0, "data": [
+  {"key": "01", "parentkey": "0", "value": "指导性案例", "count": "279", "intCount": 279},
+  {"key": "02", "parentkey": "0", "value": "参考案例", "count": "5230", "intCount": 5230}
+]}
+```
+
+数据为空时返回 `{"code": 0, "data": []}`。
+
+### sortNextLeftCluster 特殊说明
+
+案由聚类需要传 `pdh` 指定要展开的父节点 ID，ID 值和 `cpal_sort_new1_id.xml` 一致：
+
+| pdh | 说明 | 条数 |
+|:---:|------|:----:|
+| `10000` | 刑事 | ~10 条子类 |
+| `20000` | 民事 | ~44 条子类 |
+| `30000` | 行政 | ~29 条子类 |
+| `40000` | 执行 | 若干 |
+| `50000` | 国家赔偿 | 若干 |
+
+### getGroupDatas 端点
 
 ```
-POST /cpwsAl/keywordNextLeftCluster
+POST /cpwsAl/getGroupDatas
+Body: {"flag": "qsnb"}
 ```
 
-返回搜索结果中的关键词分布。
-
-### 审判年份聚类
-
-```
-POST /cpwsAl/yearNextLeftCluster
-```
-
-返回搜索结果按审判年份分布。
-
-### 其他聚类端点
-
-| 端点 | 说明 | 状态 |
-|------|------|------|
-| `sortNextLeftCluster` | 案由/罪名聚类 | 需特定条件触发 |
-| `slfyNextLeftCluster` | 审理法院聚类 | 需特定条件触发 |
-| `fyjbNextLeftCluster` | 法院级别聚类 | 需特定条件触发 |
-| `slcxNextLeftCluster` | 审理程序聚类 | 需特定条件触发 |
+返回带分组标签的案例列表。flag 可选值：`qsnb`(青少年)/`lnr`(老年人)/`flgl`(法律关联) 等。
+响应含完整案例字段（含 `cpws_al_group` 分类数组）。
 
 ---
 

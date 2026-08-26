@@ -136,6 +136,7 @@ def format_obsidian_case(case_data: dict) -> tuple[str, str, str]:
         fm_lines.append(f'案由: "{_escape_yaml(sort_name)}"')
 
     fm_lines.append(f'IP类型: "{ip_type}"')
+    fm_lines.append('来源: "人民法院案例库"')
     fm_lines.append("tags: []")
     fm_lines.append('引用建立: "[否]"')
     fm_lines.append("---")
