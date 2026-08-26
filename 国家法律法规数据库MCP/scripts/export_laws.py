@@ -10,11 +10,9 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from client import FlkClient
-from dotenv import load_dotenv
 from export_formatter import format_obsidian_law
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-
+# 导出目录：优先 .env 的 EXPORT_DIR（公开仓库不含本地路径，留空则导出到运行目录）
 DEFAULT_OUTPUT_DIR = os.environ.get("EXPORT_DIR", "")
 
 

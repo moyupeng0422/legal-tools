@@ -405,3 +405,104 @@ pandoc input.docx -t markdown --wrap=none -o output.md
 - **建议**：请求间隔 0.5s，pageSize=100 减少请求次数
 - **重试策略**：失败重试 3 次，间隔递增（1s/2s/4s）
 - **缓存**：已下载的 DOCX 缓存到 `data/content_cache/`，避免重复下载
+
+---
+
+## 9. 高级检索接口
+
+### 9.1 多条件组合搜索
+
+**POST `/law-search/highSearch/highSearch`**
+
+**功能**：支持 9 个字段自由组合，每个条件可设置 AND/OR/NOT 逻辑连接词。
+
+**请求体**：
+```json
+{
+  "dataList": [
+    {
+      "fieldName": "content",
+      "values": ["知识产权"],
+      "searchType": 2,
+      "link": 0,
+      "index": 0
+    }
+  ],
+  "orderByParam": {"order": "", "sort": ""},
+  "pageNum": 1,
+  "pageSize": 50
+}
+```
+
+**dataList 条件对象参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| fieldName | string | 搜索字段（见下表） |
+| values | array | 搜索值列表（文本传关键词数组，日期传起止日期，分类传代码数组） |
+| searchType | int | 1=精确匹配, 2=模糊匹配（默认）。仅对文本字段有效 |
+| link | int | 逻辑连接词：0=并且（AND, 默认）, 1=或者（OR）, 2=不含（NOT）。每个条件的 link 表示与前一个条件的关系 |
+| index | int | 条件序号（从 0 开始，由 MCP Server 自动填充） |
+
+**fieldName 可选值**：
+
+| fieldName | 含义 | values 格式 | 备注 |
+|-----------|------|-------------|------|
+| `title` | 法律标题 | `["关键词"]` | |
+| `content` | 法律全文 | `["关键词"]` | |
+| `xgzl.title` | 相关资料标题 | `["关键词"]` | 修改决定/实施细则等 |
+| `xgzl.content` | 相关资料全文 | `["关键词"]` | |
+| `gbrq` | 公布日期 | `["2020-01-01", "2024-12-31"]` | 起止日期 |
+| `sxrq` | 施行日期 | `["2020-01-01", "2024-12-31"]` | 起止日期 |
+| `flfg_code_id` | 法律分类 | `["120"]` | 用 codeId 非 id |
+| `zdjg_code_id` | 制定机关 | `["120"]` | 用 codeId 非 id |
+| `sxx` | 时效性 | `[3]` | 数组格式 |
+
+**响应**：与基础搜索 `/law-search/search/list` 相同格式（code/msg/total/rows）。
+
+**pageSize 限制**：高级检索的 pageSize 最大为 **50**（基础搜索最大 100）。
+
+**重要行为说明**：
+- `values` 是数组，但**不应放多个词**（API 行为不可控），多词组合应拆成多个 condition
+- 第一个条件的 `link` 建议始终为 `0`（AND），因为第一个条件没有前驱条件
+- `link` 字段表示**当前条件与前一个条件的关系**，不是全局逻辑
+
+### 9.2 高级检索命中展示
+
+**POST `/law-search/highSearch/hitDisplay`**
+
+**功能**：在高级检索结果中定位具体条文（关键词高亮）。需要先通过 highSearch 获取法规列表，再对目标法规调用本接口。
+
+**请求体**：
+```json
+{
+  "bbbs": "ff808081752b7d430175e4651cbd1547",
+  "dataList": [
+    {"fieldName": "content", "values": ["知识产权"], "searchType": 2, "link": 0, "index": 0}
+  ]
+}
+```
+
+**参数说明**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| bbbs | string | 法规 ID（搜索结果中的 bbbs 字段） |
+| dataList | array | 与搜索时**相同**的条件列表 |
+
+**响应**：与基础命中展示 `/law-search/search/hitDisplay` 相同格式。
+
+### 9.3 高级检索相关资料
+
+**POST `/law-search/highSearch/xgzl`**
+
+**功能**：查找与高级检索结果相关的关联资料（修改决定、实施细则等）。
+
+**请求体**：与 hitDisplay 相同（bbbs + dataList）。
+
+**响应**：返回相关资料列表。
+
+### 源码参考
+
+- 模型定义：`scripts/models.py` L178-281（`HighSearchCondition` / `FlkHighSearchInput` / `FlkHighHitDisplayInput` / `FlkHighXgzlInput`）
+- 调用编排：`scripts/server.py` L254-287（`high_search` 工具函数）

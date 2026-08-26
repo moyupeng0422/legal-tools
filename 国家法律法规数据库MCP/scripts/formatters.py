@@ -100,8 +100,21 @@ def format_law_detail(data: dict) -> str:
         lines.append("## 历史版本\n")
         for v in lsyg:
             vt = v.get("title", "")
+            vd = v.get("gbrq", "")
             hl = " ← 当前" if v.get("highLight") else ""
-            lines.append(f"- {vt}{hl}")
+            date_str = f" ({vd})" if vd else ""
+            lines.append(f"- {vt}{date_str}{hl}")
+        lines.append("")
+
+    # 相关资料（含修正决定、立法资料等）
+    xgzl = data.get("xgzl")
+    if xgzl and isinstance(xgzl, list) and xgzl:
+        lines.append("## 相关资料\n")
+        for f in xgzl[:10]:
+            ft = f.get("title", "")
+            fg = f.get("gbrq", "")
+            date_str = f" ({fg})" if fg else ""
+            lines.append(f"- {ft}{date_str}")
         lines.append("")
 
     # 相关文件

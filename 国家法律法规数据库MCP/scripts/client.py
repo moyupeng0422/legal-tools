@@ -64,6 +64,18 @@ class FlkClient:
             raise ApiError(data.get("msg") or f"API error code={data.get('code')}")
         return data
 
+    async def download_bytes(self, url: str) -> bytes:
+        """下载二进制文件内容（用于 docx 等）
+
+        注意：下载 URL 是 flkoss.obs-bj2.cucloud.cn 签名 URL，
+        不是 flk API 路径，需要独立 httpx 客户端。
+        """
+        await self._rate_limit()
+        async with httpx.AsyncClient(timeout=60.0) as dl_client:
+            resp = await dl_client.get(url)
+            resp.raise_for_status()
+            return resp.read()
+
     async def close(self):
         if self._instance and not self._instance.is_closed:
             await self._instance.aclose()

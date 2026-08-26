@@ -12,7 +12,7 @@
 - 搜索建议（自动补全）
 - 相关法规推荐
 - 下载链接获取（docx/pdf）
-- 导出到 Obsidian 法律法规数据库
+- 导出到 Obsidian 法律法规数据库（v1.1 升级：官方 docx 下载 → pandoc 转换 → 后处理清洗，**含条文正文完整导出**；下载失败时自动降级为骨架导出）
 - CLI 批量导出脚本
 
 ## 工具列表（11 个）
@@ -26,8 +26,7 @@
 | `flk_search_suggest` | 搜索建议 | title |
 | `flk_get_related` | 相关法规推荐 | bbbs |
 | `flk_download` | 获取下载链接 | bbbs |
-| `flk_export_law` | 导出法规到 Obsidian | bbbs 或 search_content |
-| `flk_high_search` | 高级检索 | conditions |
+| `flk_export_law` | 导出法规到 Obsidian（完整/降级骨架两种模式） | bbbs 或 search_content || `flk_high_search` | 高级检索 | conditions |
 | `flk_high_hit_display` | 高级检索命中展示 | bbbs, conditions |
 | `flk_high_xgzl` | 高级检索相关资料 | bbbs, conditions |
 
@@ -41,6 +40,8 @@ pip install -r requirements.txt
 
 依赖：mcp、httpx、pydantic、python-dotenv
 
+**完整导出功能额外依赖**：[pandoc](https://pandoc.org/installing.html)（docx → markdown 转换）。未安装 pandoc 时导出自动降级为骨架模式（仅目录树标题）。
+
 ### 2. 启动服务
 
 ```bash
@@ -52,6 +53,8 @@ python server.py
 服务监听地址：`http://localhost:18062/mcp`
 
 > 国家法律法规数据库为公开 API，**无需登录或认证**。
+
+**导出目录配置**（可选）：复制 `.env.example` 为 `.env`，设置 `EXPORT_DIR` 为你的 Obsidian 法规库根目录；留空则导出到脚本运行目录。也可在调用 `flk_export_law` 时通过 `target_dir` 参数临时指定。
 
 ### 3. 配置 MCP 客户端
 
@@ -79,10 +82,10 @@ python server.py
 国家法律法规数据库MCP/
 ├── scripts/
 │   ├── server.py           # MCP 服务器入口
-│   ├── client.py           # API 客户端（内置 0.5s 限速）
+│   ├── client.py           # API 客户端（内置 0.5s 限速 + docx 下载）
 │   ├── models.py           # 数据模型（10 个 Pydantic 模型）
 │   ├── formatters.py       # 响应格式化
-│   ├── export_formatter.py # Obsidian 导出格式化（14 类自动分类）
+│   ├── export_formatter.py # Obsidian 导出格式化（14 类自动分类 + pandoc 转换/清洗）
 │   └── export_laws.py      # CLI 批量导出脚本
 ├── references/
 │   └── 05-flk-api-reference.md  # API 端点参考
@@ -96,7 +99,15 @@ python server.py
 - Python 3.x + FastMCP（streamable-http 传输）
 - httpx（异步 HTTP，内置 0.5 秒请求间隔）
 - Pydantic v2（输入验证）
+- pandoc（docx → markdown 转换，完整导出用）
 - 无需认证
+
+## 版本历史
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v1.1.0 | 2026-07-20 | 导出功能改造：官方 docx 下载 → pandoc 转 markdown → 后处理清洗，完整导出含条文正文；失败自动降级骨架导出；SKILL.md 全文重写（8 节结构） |
+| v1.0.0 | 2026-05-15 | 首版：11 工具（搜索/详情/命中/枚举/建议/相关/下载/导出/高级检索 3 件套） |
 
 ---
 

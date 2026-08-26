@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import tempfile
 
 from mcp.server.fastmcp import FastMCP
 
@@ -20,6 +22,7 @@ from formatters import (
 
 mcp = FastMCP("flk_npc_mcp", host="127.0.0.1", port=18062)
 
+# 导出目录：优先 .env 的 EXPORT_DIR（公开仓库不含本地路径，留空则导出到运行目录）
 DEFAULT_EXPORT_DIR = os.environ.get("EXPORT_DIR", "")
 
 
@@ -359,8 +362,10 @@ async def high_xgzl(params: FlkHighXgzlInput) -> str:
 async def export_law(params: FlkExportInput) -> str:
     """将法律法规导出为 Obsidian 格式并写入法律法规数据库。
 
+    导出流程：获取详情(元数据) → 下载 docx → pandoc 转 markdown → 后处理清洗 → 组装完整文件 → 写入。
+    docx 下载失败时降级为骨架导出（仅目录树标题，不含条文正文）。
+
     支持单条导出（传入 bbbs）和批量导出（传入 search_content 按关键词搜索后导出）。
-    自动完成：分类识别 → 确定目标目录 → 生成 frontmatter + body → 写入文件。
     dry_run=True 时只返回内容不写文件，用于预览。
 
     Args:
@@ -369,9 +374,8 @@ async def export_law(params: FlkExportInput) -> str:
     Returns:
         导出结果汇总或预览内容。
     """
-    import asyncio
     from collections import Counter
-    from export_formatter import format_obsidian_law
+    from export_formatter import format_obsidian_law, format_obsidian_law_full
 
     try:
         output_dir = params.target_dir or DEFAULT_EXPORT_DIR
@@ -384,15 +388,30 @@ async def export_law(params: FlkExportInput) -> str:
 
 
 async def _export_preview(params: FlkExportInput, output_dir: str) -> str:
-    from export_formatter import format_obsidian_law
+    from export_formatter import format_obsidian_law, format_obsidian_law_full
+    from export_formatter import run_pandoc, clean_pandoc_output, build_title_with_version
 
     if params.bbbs:
+        # 获取详情
         result = await client.get(f"search/flfgDetails?bbbs={params.bbbs}")
         data = result.get("data", {})
         if not data:
             return "未获取到法律法规详情。"
-        file_content, filename, subdir = format_obsidian_law(data)
-        return f"## 预览导出结果\n\n**目标路径**: `{subdir}/{filename}`\n\n---\n\n{file_content}"
+
+        # 尝试下载 docx 并转换
+        try:
+            body_md = await _download_and_convert(params.bbbs, detail_data=data)
+            if body_md:
+                file_content, filename, subdir = format_obsidian_law_full(data, body_md)
+                mode = "完整导出（含条文正文）"
+            else:
+                file_content, filename, subdir = format_obsidian_law(data)
+                mode = "骨架导出（docx 下载/转换失败，仅含目录树标题）"
+        except Exception:
+            file_content, filename, subdir = format_obsidian_law(data)
+            mode = "骨架导出（docx 下载失败，仅含目录树标题）"
+
+        return f"## 预览导出结果（{mode}）\n\n**目标路径**: `{subdir}/{filename}`\n\n---\n\n{file_content}"
 
     # 批量预览
     body = {
@@ -418,19 +437,62 @@ async def _export_preview(params: FlkExportInput, output_dir: str) -> str:
         clean = clean_highlight(title)
         lines.append(f"{i}. **{clean}** (`{row.get('bbbs', '')}`)")
 
-    lines.append(f"\n> 实际导出时将获取每条法规的完整详情。")
+    lines.append(f"\n> 实际导出时将：获取详情 → 下载 docx → pandoc 转换 → 写入文件。")
     return "\n".join(lines)
 
 
-async def _export_write(params: FlkExportInput, output_dir: str) -> str:
-    import asyncio
-    from collections import Counter
-    from export_formatter import format_obsidian_law
+async def _download_and_convert(bbbs: str, detail_data: dict | None = None) -> str | None:
+    """下载 docx → pandoc 转 md → 后处理清洗
 
-    ip_counter = Counter()
+    Args:
+        bbbs: 法规 ID
+        detail_data: 可选，已有的详情数据。传入可避免重复 API 请求。
+
+    返回清洗后的正文 markdown，失败返回 None。
+    """
+    from export_formatter import run_pandoc, clean_pandoc_output
+
+    # 1. 获取下载 URL
+    dl_result = await client.get(f"download/pc?bbbs={bbbs}&fileType=docx")
+    dl_data = dl_result.get("data", {})
+    url = dl_data.get("url", "")
+    if not url:
+        return None
+
+    # 2. 下载 docx 到临时文件
+    docx_bytes = await client.download_bytes(url)
+    tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+    try:
+        tmp.write(docx_bytes)
+        tmp.close()
+
+        # 3. pandoc 转换
+        raw_md = run_pandoc(tmp.name)
+        if not raw_md:
+            return None
+
+        # 4. 获取详情用于后处理（判断章结构等），如未传入则请求
+        if detail_data is None:
+            detail_result = await client.get(f"search/flfgDetails?bbbs={bbbs}")
+            detail_data = detail_result.get("data", {})
+
+        # 5. 后处理清洗
+        return clean_pandoc_output(raw_md, detail_data)
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+
+async def _export_write(params: FlkExportInput, output_dir: str) -> str:
+    from collections import Counter
+    from export_formatter import format_obsidian_law, format_obsidian_law_full
+
     exported = 0
     skipped = 0
     failed = 0
+    fallback = 0
     file_list = []
 
     if params.bbbs:
@@ -439,9 +501,19 @@ async def _export_write(params: FlkExportInput, output_dir: str) -> str:
         if not data:
             return "未获取到法律法规详情。"
 
-        file_content, filename, subdir = format_obsidian_law(data)
-        target_path = os.path.join(output_dir, subdir, filename)
+        # 尝试完整导出
+        try:
+            body_md = await _download_and_convert(params.bbbs, detail_data=data)
+            if body_md:
+                file_content, filename, subdir = format_obsidian_law_full(data, body_md)
+            else:
+                file_content, filename, subdir = format_obsidian_law(data)
+                fallback += 1
+        except Exception:
+            file_content, filename, subdir = format_obsidian_law(data)
+            fallback += 1
 
+        target_path = os.path.join(output_dir, subdir, filename)
         if os.path.exists(target_path):
             return f"文件已存在，跳过: `{subdir}/{filename}`"
 
@@ -449,7 +521,11 @@ async def _export_write(params: FlkExportInput, output_dir: str) -> str:
         with open(target_path, "w", encoding="utf-8") as f:
             f.write(file_content)
 
-        return f"导出成功！\n文件: `{subdir}/{filename}`"
+        mode_note = ""
+        if fallback:
+            mode_note = "（骨架模式：docx 下载失败，仅含目录树标题）"
+
+        return f"导出成功！{mode_note}\n文件: `{subdir}/{filename}`"
 
     # 批量导出
     items = []
@@ -486,7 +562,18 @@ async def _export_write(params: FlkExportInput, output_dir: str) -> str:
                 failed += 1
                 continue
 
-            file_content, filename, subdir = format_obsidian_law(data)
+            # 尝试完整导出
+            try:
+                body_md = await _download_and_convert(bbbs, detail_data=data)
+                if body_md:
+                    file_content, filename, subdir = format_obsidian_law_full(data, body_md)
+                else:
+                    file_content, filename, subdir = format_obsidian_law(data)
+                    fallback += 1
+            except Exception:
+                file_content, filename, subdir = format_obsidian_law(data)
+                fallback += 1
+
             target_path = os.path.join(output_dir, subdir, filename)
 
             if os.path.exists(target_path):
@@ -508,6 +595,8 @@ async def _export_write(params: FlkExportInput, output_dir: str) -> str:
     lines = ["导出完成！\n"]
     lines.append(f"总计: {len(items)} 条")
     lines.append(f"导出: {exported} 条")
+    if fallback:
+        lines.append(f"骨架导出（docx 失败）: {fallback} 条")
     if skipped:
         lines.append(f"跳过（已存在）: {skipped} 条")
     if failed:
@@ -522,4 +611,8 @@ async def _export_write(params: FlkExportInput, output_dir: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import sys
+    if sys.stdin.isatty():
+        mcp.run(transport="streamable-http")
+    else:
+        mcp.run()
