@@ -9,6 +9,7 @@
 
 | 日期 | 类型 | 工具 | 版本 | 更新要点 |
 |------|------|------|------|----------|
+| 2026-08-28 | 新增 | 法律MCP路由Skill | v1.0.0 | 7 个法律 MCP 的过程管控路由总 skill：场景识别 → 子 agent 分发 → 止损红线/预算守护/调用安全，含子 skill 适配层与多宿主（CC/WorkBuddy/Codex）hook 自动记账 |
 | 2026-08-27 | 更新 | 国家法律法规数据库 MCP | v1.1.0 | 导出功能改造：官方 docx 下载 → pandoc 转换 → 后处理清洗，含条文正文完整导出；下载失败自动降级骨架导出；SKILL.md 全文重写 |
 | 2026-08-26 | 更新 | 人民法院案例库 MCP | v2.0.0 | 按需自动登录 + 每周定时导入 + 三缺陷修复 |
 | 2026-08-18 | 新增 | 元典MCP实务操作指南 | v1.0 | 华宇元典 MCP 操作指南：给 AI Agent 直接照着调用的操作手册 |
@@ -60,6 +61,7 @@
 
 | 工具 | 说明 | 许可证 | 版本 | 使用条件 | 详情 |
 |------|------|--------|------|----------|------|
+| **法律MCP路由Skill** | 7 个法律 MCP（法信/北大法宝/元典/威科等）的过程管控路由总 skill：场景识别 → 子 agent 分发 → 止损红线/预算守护/调用安全审计；含参数速查卡、坑位清单、子 skill 适配层（壳/融合两模式）与多宿主 hook 自动记账，附 F1 咨询参考实现 | MIT | v1.0.0 | 按需配置法律 MCP（免费层 MCP 可直接跑；计费层 MCP 需各自授权） | [目录](%E6%B3%95%E5%BE%8BMCP%E8%B7%AF%E7%94%B1Skill/) |
 | **法律问题研究分析** | 整合两大 MCP 多源法律检索与综合分析，Quick/Full 双模式，输出 Obsidian/DOCX 研究报告 | MIT | — | 依赖上述两个 MCP 服务器 | [目录](%E6%B3%95%E5%BE%8B%E9%97%AE%E9%A2%98%E7%A0%94%E7%A9%B6%E5%88%86%E6%9E%90/) |
 | **Hermes与Claude Code协作** | 双 AI Agent 结构化协作规范（SSH+tmux），含 CC 端协议、监控辩论、错误恢复等 22 个参考文档 | MIT | v3.40+ | 需本地 Hermes 环境 | [目录](Hermes%E4%B8%8EClaude%20Code%E5%8D%8F%E4%BD%9C/) |
 | **Hermes与WorkBuddy飞书协作** | 云端 Hermes 通过飞书群聊 + SSH 双通道指挥本地 WorkBuddy，支持多轮辩论、交付物分离、状态监控 | MIT | v3.0 | 需 Hermes + 飞书环境 | [目录](Hermes%E4%B8%8EWorkBuddy%E9%A3%9E%E4%B9%A6%E5%8D%8F%E4%BD%9C/) |
@@ -126,6 +128,8 @@ cd 国家法律法规数据库MCP/scripts && python server.py
 ### 方式二：安装 Skill
 
 将 Skill 目录（如 `法律问题研究分析/`）复制到 Agent 平台的 skills 目录（如 `~/.claude/skills/`）即可。Skill 的触发条件写在各自的 `SKILL.md` 中，Agent 会根据对话场景自动触发，无需手动调用。
+
+> **法律MCP路由Skill** 略有不同：首次运行会自动触发 onboarding 引导（约 5 分钟三问访谈，生成你的 MCP 清单与预算偏好配置），零配置开箱即用；可与本仓库的两个 MCP 服务器组合使用，也支持自建/第三方法律 MCP。Claude Code 与 Codex 宿主可选安装 hook 实现调用自动记账，安装与卸载说明见其 [README](%E6%B3%95%E5%BE%8BMCP%E8%B7%AF%E7%94%B1Skill/README.md)。
 
 各 Skill 的功能细节、依赖条件见目录内的 [README.md](%E6%B3%95%E5%BE%8B%E9%97%AE%E9%A2%98%E7%A0%94%E7%A9%B6%E5%88%86%E6%9E%90/README.md) 与 `SKILL.md`。
 
