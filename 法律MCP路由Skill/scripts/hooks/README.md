@@ -47,7 +47,7 @@
   脚本纯旁路解析落账，**LLM 全程无感知、不占模型往返**；
 - **任务边界 = session_id**（一个会话天然一个 task_id），无任何 LLM 维护的状态文件——
   检索中途降级/升级换 MCP 完全不影响记账；
-- 只记 `credit-dictionary.json → server_alias` 映射内的 7 个法律 MCP；未映射（企查查/天眼查等）静默跳过；
+- 只记 `credit-dictionary.json → server_alias` 映射内的 9 个法律 MCP 与企查查企业桥；企查查法律数据按固定1/3分记账，企业桥按动态成本记 `cost=null`，其他未映射 server 静默跳过；
 - 档位由脚本三形态查表（禁凭记忆），quota_type 从 `data/user-profile.json` 的 tier 映射；
   profile 标 `cost_known: false` 的知识库外 MCP → 记 `cost=null`+note（不查表不掉 default 档，
   不参与 `verify_usage` 积分对账，2026-08-28 立）；

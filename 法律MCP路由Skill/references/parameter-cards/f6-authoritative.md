@@ -1,8 +1,9 @@
 # 功能6 · 权威案例（指导性/参考案例，裁判说理引用）
 
-> ⚠️ **调用包裹格式（本卡涉及：RMFYALK=包裹 / 元典·北大法宝=平铺）**：RMFYALK 侧工具参数须包一层 `{"params": {...}}`；元典/北大法宝侧参数**平铺直传**，不包 params（retest-F1-20260827 建议7）。
+> ⚠️ **调用包裹格式（本卡涉及：RMFYALK=包裹 / 企查查·元典·北大法宝=平铺）**：RMFYALK 侧工具参数须包一层 `{"params": {...}}`；企查查/元典/北大法宝侧参数**平铺直传**，不包 params。企查查完整参数见 `qcc-legal.md`。
 
-> 升级路径（2026-08-26 调序，用户批准）：**RMFYALK（官方首选） → 元典qwal(5分) → 北大法宝get_case_list(caseGrade)**
+> 升级路径（2026-08-28 扩展）：**RMFYALK（官方首选） → 企查查 authoritative_case_search(3分) → 元典qwal(5分) → 北大法宝get_case_list(caseGrade)**
+> **企查查指针**：`get_judicial_authoritative_case_search(keyword/caseNo/referenceLevel/...)`；`referenceLevel` 支持典型/入库/公报/最高法指导性/最高检指导性/参考性案例。即使 schema 允许全空也禁止无条件付费扫库，完整表见 `qcc-legal.md`。
 > 类型：**确定型**——命中且可信即停止
 > 坑位：pitfall #16（keyword vs key_content）
 

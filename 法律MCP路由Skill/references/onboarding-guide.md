@@ -9,8 +9,9 @@
 
 1. **MCP 探测**（Q2 的素材，先做后问）：
    - 列出当前宿主会话可用的工具清单（CC：已连接 MCP 的 tools；其他宿主：对应配置文件）
-   - 按名称/描述关键词匹配疑似法律类工具：`law / case / 法规 / 案例 / 裁判 / faxin / flk / rmfyalk / pkulaw / yuandian / wk / 法信 / 法宝 / 元典 / 威科` 等
-   - 对照总skill 已知7 MCP 清单（见 `parameter-cards/README.md` 第二节），标出"已知"（框架有深度知识）与"未知"（需通用模式）
+   - 按名称/描述关键词匹配疑似法律类工具：`law / case / 法规 / 案例 / 裁判 / faxin / flk / rmfyalk / pkulaw / yuandian / wk / qcc-legal / 法信 / 法宝 / 元典 / 威科 / 企查查法律` 等
+   - 对照总skill 已知9 MCP 清单（见 `parameter-cards/README.md` 第二节），标出"已知"（框架有深度知识）与"未知"（需通用模式）；`qcc-legal-regulation` 与 `qcc-legal-case` 计入法律 MCP
+   - 单独识别 `qcc-company/risk/ipr/operation/history/executive`（含下划线命名）：它们不是法律数据库，登记为企查查企业事实桥并加载 `qcc-enterprise-bridge.md`
    - **注意**：探测不到 ≠ 没有。未连接的 MCP 允许用户手动补充（记入 profile，运行时在线校验）
    - **宿主自检（2026-08-28 补，Codex 对照测试；同日 Codex hook 适配更新记账形态）**：确认当前宿主是什么——CC（有 hooks 可装自动记账）/ Codex（有 hooks 可装自动记账，装后须 `/hooks` 审核信任；未装则手动记账 + 日志可能降级落临时目录）/ WorkBuddy（手动记账）。**skill 被显式路径加载 ≠ 宿主原生发现**：Codex 只扫 `~/.codex/skills/`，未挂载时提示用户 junction/复制后再验证自动触发
 
@@ -41,11 +42,13 @@
 - 每项 → `mcp_inventory.<name>`：`{ enabled, tier( free | quota_recurring | free_trial | one_time ), budget_per_task? }`
 - 未知 MCP（框架知识库外）→ 同样登记，运行时走通用模式（读 tool description 定参数、成本未知按 confirm 政策），并标 `"cost_known": false`（记账记 cost=null 不参与积分对账）
 - 用户明确表示对某功能默认工具顺序有偏好 → 写入顶层 `path_order_overrides.<功能号>`（不问不写，默认空；见附录）
-- 非法律 MCP（企查查/网页等）→ 登记到 `autonomous_nonlegal_mcp`，标 `cost_level: free|paid`
+- 企查查法律数据 → 登记到 `mcp_inventory`，默认 `tier: quota_recurring, cost_known: true`；若用户套餐不同，以用户确认为准
+- 企查查企业数据 6 组 server → 登记到 `autonomous_nonlegal_mcp` 的同一 `qcc-enterprise` 类，标 `cost_level: paid, cost_known: false`；执行时按事实桥规则一次性确认预计次数
+- 其他非法律 MCP（网页等）→ 登记到 `autonomous_nonlegal_mcp`，标 `cost_level: free|paid`
 
 ## Q3 预算与确认策略（约1分钟）
 
-> "默认确认规则如下，要调整吗？——①北大法宝+元典合计超 300 分中途预警 ②威科/元典hall_detect/超预算调用前确认 ③计费非法律MCP（企查查等）首次使用时按单类一次性确认，超量50%再报备"
+> "默认确认规则如下，要调整吗？——①北大法宝+元典合计超 300 分中途预警 ②威科/元典hall_detect/超预算调用前确认 ③企查查法律数据按1/3分档位纳入任务预算 ④企查查企业数据按预计次数一次性确认，超量50%再报备、任务后核对平台账单"
 
 落盘规则：调整则改 `confirm_thresholds` 对应项。
 

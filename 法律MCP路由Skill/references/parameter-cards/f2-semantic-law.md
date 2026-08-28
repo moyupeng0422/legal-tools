@@ -1,8 +1,9 @@
 # 功能2 · 语义找法条（只有问题描述）
 
-> ⚠️ **调用包裹格式（本卡涉及：FLK·法信=包裹 / 元典·北大法宝·威科=平铺）**：FLK/法信侧工具参数须包一层 `{"params": {...}}`；元典/北大法宝/威科侧参数**平铺直传**，不包 params（retest-F1-20260827 建议7）。
+> ⚠️ **调用包裹格式（本卡涉及：FLK·法信=包裹 / 企查查·元典·北大法宝·威科=平铺）**：FLK/法信侧工具参数须包一层 `{"params": {...}}`；企查查/元典/北大法宝/威科侧参数**平铺直传**，不包 params。企查查完整参数见 `qcc-legal.md`。
 
-> 升级路径（2026-08-26 调序，用户批准）：**FLK拆词 → 法信拆词 → 元典law_vector_search(15分) → 北大法宝search_article(125分) → 威科search_law(10次)**
+> 升级路径（2026-08-28 扩展）：**FLK拆词 → 法信拆词 → 企查查 article_semantic_search(3分) → 元典law_vector_search(15分) → 北大法宝search_article(125分) → 威科search_law(10次)**
+> **企查查指针**：`get_legal_article_semantic_search(query[, regulationName/effectStatus/effectRank/effectScope/日期过滤])`，自然语言问题最长500字符，3分；关键词已经明确时改用 `get_legal_article_search`（1分）。完整表见 `qcc-legal.md`。
 > 类型：**分析型**——免费层多源互补 + 额度层至少1个 + 整体评估（升级表4.3）
 > ⚠️ **效果敏感场景**：找错法条比花钱更糟
 > ⚠️ **法研排除**：不用于语义找法条（无语义引擎、拆词检索差）——坑位清单 pitfall #19
