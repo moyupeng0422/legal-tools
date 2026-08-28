@@ -2,7 +2,8 @@
 
 > ⚠️ **调用包裹格式（本卡涉及：法信=包裹 / 北大法宝·元典=平铺）**：法信侧工具参数须包一层 `{"params": {...}}`；北大法宝/元典侧参数**平铺直传**，不包 params（retest-F1-20260827 建议7）。
 
-> 升级路径：**法信case_search(14独立字段+6金额+3段落标签，条件最全) → 北大法宝get_case_list(25分) → 元典qwal/ptal(5分)**
+> 升级路径（2026-08-28 扩展）：**法信case_search(14独立字段+6金额+3段落标签，条件最全) → 企查查 case_search/detail(各3分) → 北大法宝get_case_list(25分) → 元典qwal/ptal(5分)**
+> **企查查指针**：`get_judicial_case_search(keyword/caseReason/courtLevel/province/caseType/docType/judgeDate*)` 适合低成本结构化类案检索；固定最多20条，无分页。需要引用裁判原文时再对少量候选调用 `get_judicial_case_detail`，完整表见 `qcc-legal.md`。
 > 类型：**分析型**——免费层多源互补 + 额度层至少1个 + 评估补缺（升级表4.3）
 > ⚠️ RMFYALK 正文不支持组合检索，勿用于类案检索（pitfall #8）
 > ⚠️ **法信 Token 过期处置（2026-08-26 MCP 工具层修复后）**：检索报"Token 已过期"或返回"⚠️ Token 疑似过期"（空结果可能为过期态表现，pitfall #43）→ **直接调 `faxin_wenshu_auto_login` 工具自助刷新**（实测 L2 登录约 39s，成功自动同步凭证），刷新后重试本检索；工具刷新失败才按降级规则"标注缺失继续"并上报总skill。~~旧规则"须跑本地 bat、子agent 无法自助恢复"已失效（基于修复前缺陷）~~

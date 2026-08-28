@@ -1,17 +1,17 @@
 {
   "_meta": {
-    "generated": "2026-08-05",
-    "format_version": 1,
-    "description": "已知7个法律MCP的成本字典（框架知识库）。每次调用前查此表估算成本。档位全部来自实测（2026-07-24积分流水 + 元典list_apis官方API列表 + 用户确认）。未列出的工具按所属MCP default_cost计算。用户实际可用的MCP以 data/user-profile.json 的 mcp_inventory 为准（本表未收录的MCP = 知识库外，走通用模式：成本未知一律调用前确认）。",
+    "generated": "2026-08-28",
+    "format_version": 2,
+    "description": "已知9个法律MCP及企查查企业数据桥的成本字典（框架知识库）。每次调用前查此表估算成本。原7库档位来自实测（2026-07-24积分流水 + 元典list_apis官方API列表 + 用户确认）；企查查法律数据档位来自2026-08-28产品计费表。未列出的工具按所属MCP default_cost计算。企查查企业工具因部署/套餐可变统一记cost=null，按调用次数确认并等待平台账单核对。用户实际可用的MCP以 data/user-profile.json 的 mcp_inventory 为准。",
     "quota_types": {
       "infinite": "无限免费（法信/FLK/RMFYALK），无需预算守护",
-      "recurring": "定期赠送积分（北大法宝/元典），用完等补，准免费——免费层不足时优先用",
+      "recurring": "定期积分或套餐额度（北大法宝/元典/企查查法律数据），免费层不足时按功能与档位使用",
       "free_trial": "免费试用额度（法研30天/500次），用尽即止",
       "one_time": "一次性稀缺（威科10次/工具），用完即止，最后用且须确认"
     }
   },
   "server_alias": {
-    "_note": "宿主 MCP server 名 → 本字典 mcp key 的映射（hooks/auto_log_hook.py 与 backfill 用）。未列出的 server（企查查/天眼查/其他）不自动记账；引入新法律 MCP 时在此加一行。2026-08-28 依据本机 mcp.json 实际 server 名核对（28 server 全集）。",
+    "_note": "宿主 MCP server 名 → 本字典 mcp key 的映射（hooks/auto_log_hook.py 与 backfill 用）。企查查法律数据按固定档位记账；企查查企业数据按调用次数记cost=null。未列出的 server 不自动记账；引入新 MCP 时在此登记。",
     "faxin-case": "faxin",
     "faxin-laws": "faxin",
     "flk": "flk",
@@ -28,7 +28,23 @@
     "pkulaw-add-doc-link": "pkulaw",
     "yuandian-law": "yuandian",
     "yuandian-case": "yuandian",
-    "wk-mcp": "wk-mcp"
+    "wk-mcp": "wk-mcp",
+    "qcc-legal-regulation": "qcc-legal-regulation",
+    "qcc_legal_regulation": "qcc-legal-regulation",
+    "qcc-legal-case": "qcc-legal-case",
+    "qcc_legal_case": "qcc-legal-case",
+    "qcc-company": "qcc-enterprise",
+    "qcc_company": "qcc-enterprise",
+    "qcc-risk": "qcc-enterprise",
+    "qcc_risk": "qcc-enterprise",
+    "qcc-ipr": "qcc-enterprise",
+    "qcc_ipr": "qcc-enterprise",
+    "qcc-operation": "qcc-enterprise",
+    "qcc_operation": "qcc-enterprise",
+    "qcc-history": "qcc-enterprise",
+    "qcc_history": "qcc-enterprise",
+    "qcc-executive": "qcc-enterprise",
+    "qcc_executive": "qcc-enterprise"
   },
   "mcp": {
     "faxin": {
@@ -87,6 +103,57 @@
         "rmfyalk_export_case": 0,
         "rmfyalk_check_token": 0
       }
+    },
+    "qcc-legal-regulation": {
+      "display": "企查查法律数据·法律法规",
+      "type": "platform",
+      "currency": "积分",
+      "quota_type": "recurring",
+      "default_cost": 1,
+      "tools": {
+        "get_legal_regulation_search": 1,
+        "get_legal_article_semantic_search": 3,
+        "get_legal_regulation_detail": 1,
+        "get_legal_article_search": 1,
+        "get_legal_article_detail": 1,
+        "get_legal_citation_verify": 1
+      },
+      "notes": [
+        "参数平铺直传，不包params；搜索固定最多20条，无page/size/cursor",
+        "法规/条文搜索与详情分别计费；空结果不等于不存在",
+        "rid1.* 等opaque id只可从搜索/校验结果原样传给同类详情工具"
+      ]
+    },
+    "qcc-legal-case": {
+      "display": "企查查法律数据·司法案例",
+      "type": "platform",
+      "currency": "积分",
+      "quota_type": "recurring",
+      "default_cost": 3,
+      "tools": {
+        "get_judicial_case_search": 3,
+        "get_judicial_authoritative_case_search": 3,
+        "get_judicial_case_detail": 3,
+        "get_judicial_citation_verify": 3
+      },
+      "notes": [
+        "参数平铺直传，不包params；搜索固定最多20条，无page/size/cursor",
+        "权威案例工具schema虽允许全空，路由层仍须至少一个有意义条件",
+        "cid1.* 等opaque id只可从搜索/校验结果原样传给案例详情"
+      ]
+    },
+    "qcc-enterprise": {
+      "display": "企查查企业数据（company/risk/ipr/operation/history/executive）",
+      "type": "platform-bridge",
+      "currency": "动态/套餐相关",
+      "quota_type": "recurring",
+      "default_cost": null,
+      "tools": {},
+      "notes": [
+        "仅作涉企法律任务的事实核验桥，不替代法规/通用案例数据库",
+        "具体工具成本随部署或套餐变化，自动记cost=null；调用前按预计次数一次性确认",
+        "主体简称先get_company_by_query锚定；广泛风险先get_company_risk_scan再按非零维度下钻"
+      ]
     },
     "pkulaw": {
       "display": "北大法宝（9独立server）",
@@ -181,7 +248,9 @@
       "no_confirm": "法研（free_trial）、免费层（法信/FLK/RMFYALK）——无需确认",
       "accumulated_warn": "北大法宝+元典积分池合计>300分 → 中途预警并询问是否继续",
       "recurring_balance": "北大法宝/元典积分定期补——余额不足时等待补充而非改用更贵方案",
-      "free_trial_exhausted": "法研500次耗尽 → 法规场景升级北大法宝25分/元典1分"
+      "free_trial_exhausted": "法研500次耗尽 → 法规场景升级企查查1/3分、北大法宝25分或元典1分",
+      "qcc_legal": "企查查法律法规工具1/3分、案例工具3分；按任务预计调用数计入recurring积分预算",
+      "qcc_enterprise": "企查查企业数据成本动态：按预计次数一次性确认，记cost=null，任务后以平台账单复核"
     }
   }
 }

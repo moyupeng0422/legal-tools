@@ -11,7 +11,7 @@ turn_id/tool_use_id）——脚本纯旁路解析并写入 usage_log，LLM 全�
 宿主判定：stdin 含 tool_use_id → host=codex，否则 host=cc（仅入 note 供审计）。
 
 设计约束（见 discussions/2026-08-27-hook自动记账实施方案.md v2）：
-  ① 只记 server_alias 映射内的 7 个法律 MCP；未映射（qcc-*/tyc 等）静默跳过
+  ① 只记 server_alias 映射内的 9 个法律 MCP + 企查查企业桥；其他未映射 server 静默跳过
   ② 档位由脚本查 credit-dictionary（三形态），LLM 不传 cost——错账从机制上消灭
   ③ quota_type 从 data/user-profile.json mcp_inventory 的 tier 映射
   ④ 永远 exit 0：记账失败不阻塞主流程（异常写 stderr 供排查）
@@ -183,7 +183,7 @@ def main():
     alias = load_server_alias()
     inv_key = alias.get(server)
     if not inv_key:
-        return  # 非法律 MCP（qcc-*/tyc/其他）→ 静默跳过
+        return  # 未映射 MCP → 静默跳过
 
     # 复用 log_usage 的查表与写入（单一通道）
     try:

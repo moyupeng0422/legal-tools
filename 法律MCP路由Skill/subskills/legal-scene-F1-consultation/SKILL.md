@@ -5,7 +5,7 @@ agent_created: true
 subskill_of: legal-mcp-router
 L2_id: "F1"
 light_layer: "layers/f1-1-quick.md"
-description: 咨询场景子skill（F1，融合模式改造自「法律问题研究分析」skill，含简单咨询/深度咨询/咨询意见书三层，v3 拆层——骨架+layers/f1-1-quick|f1-2-memo|f1-3-opinion 按需加载）。由总skill（legal-mcp-router）识别到 L2=F1 后分发本子skill 执行。职责=内容产出：L3复杂度分层判断 → 五阶段研究流程（问题拆解→法律依据检索→裁判规则与案例检索→交叉校验与IRAC综合分析→报告生成）→ 输出快答/研究备忘录（8章报告）/咨询意见书。所有工具参数/预算/止损/打卡纪律引用总skill references（7个法律MCP体系），本skill不重复维护。知识产权案件专项检索策略见 references/ip-strategies.md。
+description: 咨询场景子skill（F1，融合模式改造自「法律问题研究分析」skill，含简单咨询/深度咨询/咨询意见书三层，v3 拆层——骨架+layers/f1-1-quick|f1-2-memo|f1-3-opinion 按需加载）。由总skill（legal-mcp-router）识别到 L2=F1 后分发本子skill 执行。职责=内容产出：L3复杂度分层判断 → 五阶段研究流程（问题拆解→法律依据检索→裁判规则与案例检索→交叉校验与IRAC综合分析→报告生成）→ 输出快答/研究备忘录（8章报告）/咨询意见书。所有工具参数/预算/止损/打卡纪律引用总skill references（9个法律MCP + 企查查企业事实桥体系），本skill不重复维护。知识产权案件专项检索策略见 references/ip-strategies.md。
 triggers:
   - 咨询 / 客户问 / 帮我看看 / 这个问题怎么处理 / 法律依据是什么
   - 跨领域 / 陌生领域 / 不了解 / 快速上手 / 领域法规体系
@@ -22,7 +22,7 @@ triggers:
 > - 总skill（主agent）有：方案审核/批准、纠错/换MCP/升级决策、输出审核、打卡、对账
 > **来源**：融合改造自「法律问题研究分析」skill（五阶段研究流程/IRAC框架/8章报告模板/质量校验清单/工作原则/IP专项策略留核；3-MCP 调用层换腹为 7-MCP 速查卡引用）。原 F1 首版（2026-08-14）的 L3 分层/功能编排/预算止损注记/坑位引用保留于各层流程内。
 > **v3 拆层（2026-08-27，abtest-F1-20260827 优化；同日复测后修订）**：本 SKILL.md 为骨架（判层+总览+衔接协议+纪律），三层流程详情按层加载——F1.1 → `layers/f1-1-quick.md`（**主agent 直执行，不读本骨架不启子agent**）；F1.2 → `layers/f1-2-memo.md`（子agent）；F1.3 → `layers/f1-2-memo.md` + `layers/f1-3-opinion.md`（子agent）。**判层后只读对应层文件，禁读其余 layers**（总skill 分发协议加载纪律）。
-> **不应触发的场景**（由总skill 路由把关）：单纯查企业工商信息（企查查MCP）、纯事实查询无需法律分析、文件格式转换、非中国法律问题、案例对比与裁判预测为主意图（→A2）。
+> **不应触发的场景**（由总skill 路由把关）：单纯查企业工商信息（企查查企业MCP）、纯事实查询无需法律分析、文件格式转换、非中国法律问题、案例对比与裁判预测为主意图（→A2）。涉企法律分析可由总skill 按企业事实桥 + 法律 MCP 组合后分发本子skill。
 
 ## 一、L3 复杂度分层 × 模式选择（进入即做，决定整套编排）
 

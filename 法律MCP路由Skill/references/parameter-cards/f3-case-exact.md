@@ -2,7 +2,8 @@
 
 > ⚠️ **调用包裹格式（本卡涉及：RMFYALK·法信=包裹 / 元典·北大法宝=平铺）**：RMFYALK/法信侧工具参数须包一层 `{"params": {...}}`；元典/北大法宝侧参数**平铺直传**，不包 params（retest-F1-20260827 建议7）。
 
-> 升级路径：**RMFYALK → 法信 → 元典case_details(10分) → 北大法宝get_case_list(25分)**
+> 升级路径（2026-08-28 扩展）：**RMFYALK → 法信 → 企查查 case_search/detail(各3分) → 元典case_details(10分) → 北大法宝get_case_list(25分)**
+> **企查查指针**：案号已知用 `get_judicial_case_search(caseNo)`，命中后以返回的 opaque id 原样传 `get_judicial_case_detail(id)`；也可直接 `get_judicial_case_detail(caseNo)`。参数平铺、固定最多20条、无分页，完整表见 `qcc-legal.md`。
 > 类型：**确定型**——命中且可信即停止（升级表4.2）
 > 坑位：pitfall #8（RMFYALK正文组合检索）、#16（keyword vs key_content）
 > 🔁 **案号核验交叉路径（2026-08-27 立；同日复测后收窄）**：案号核验属"关键结论"的场景（如 F1.2/F1.3 覆盖约定——客户提供的案号直接决定分析方向），**免费层双源优先**：RMFYALK（case_ref）+ 法信（case_id）各查一次（RMFYALK 不可用时替代双源：法信 case_id + 元典 rh_case_details 10分，2026-08-27 复测实测）。第三源升级条件（**收窄，仅以下两种**）：
