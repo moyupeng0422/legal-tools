@@ -61,7 +61,7 @@
 
 | 工具 | 说明 | 许可证 | 版本 | 使用条件 | 详情 |
 |------|------|--------|------|----------|------|
-| **法律MCP路由Skill** | 7 个法律 MCP（法信/北大法宝/元典/威科等）的过程管控路由总 skill：场景识别 → 子 agent 分发 → 止损红线/预算守护/调用安全审计；含参数速查卡、坑位清单、子 skill 适配层（壳/融合两模式）与多宿主 hook 自动记账，附 F1 咨询参考实现 | MIT | v1.0.0 | 按需配置法律 MCP（免费层 MCP 可直接跑；计费层 MCP 需各自授权） | [目录](%E6%B3%95%E5%BE%8BMCP%E8%B7%AF%E7%94%B1Skill/) |
+| **法律MCP路由Skill** | 7 个法律 MCP（北大法宝/元典/威科/法研等）的过程管控路由总 skill：场景识别 → 子 agent 分发 → 止损红线/预算守护/调用安全审计；含参数速查卡、坑位清单、子 skill 适配层（壳/融合两模式）与多宿主 hook 自动记账，附 F1 咨询参考实现 | MIT | v1.0.0 | 按需配置法律 MCP（免费层 MCP 可直接跑；计费层 MCP 需各自授权） | [目录](%E6%B3%95%E5%BE%8BMCP%E8%B7%AF%E7%94%B1Skill/) |
 | **法律问题研究分析** | 整合两大 MCP 多源法律检索与综合分析，Quick/Full 双模式，输出 Obsidian/DOCX 研究报告 | MIT | — | 依赖上述两个 MCP 服务器 | [目录](%E6%B3%95%E5%BE%8B%E9%97%AE%E9%A2%98%E7%A0%94%E7%A9%B6%E5%88%86%E6%9E%90/) |
 | **Hermes与Claude Code协作** | 双 AI Agent 结构化协作规范（SSH+tmux），含 CC 端协议、监控辩论、错误恢复等 22 个参考文档 | MIT | v3.40+ | 需本地 Hermes 环境 | [目录](Hermes%E4%B8%8EClaude%20Code%E5%8D%8F%E4%BD%9C/) |
 | **Hermes与WorkBuddy飞书协作** | 云端 Hermes 通过飞书群聊 + SSH 双通道指挥本地 WorkBuddy，支持多轮辩论、交付物分离、状态监控 | MIT | v3.0 | 需 Hermes + 飞书环境 | [目录](Hermes%E4%B8%8EWorkBuddy%E9%A3%9E%E4%B9%A6%E5%8D%8F%E4%BD%9C/) |
