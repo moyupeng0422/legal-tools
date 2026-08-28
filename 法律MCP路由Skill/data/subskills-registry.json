@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "format_version": 3,
+    "description": "场景子skill注册表——总skill启动时扫描此表定位已挂载的子skill。新增子skill = 在此表加一行 + 新建子skill文件，无需改动总skill。schema_v2/v3字段定义详版与合并/壳模式改造方法见 references/subskill-adaptation-guide.md；轻量层机制见 references/lightweight-protocol.md。各子skill溯源注记（原note全文）已迁入各子skill SKILL.md 尾部「变更归档注记」节（2026-08-27）。",
+    "schema_v2_fields": "adapter_mode|source_skill|autonomous_mcp|redirects 定义详版 → references/subskill-adaptation-guide.md",
+    "schema_v3_fields": "light_layer（非空且判层命中轻量层→走轻量分发协议）定义详版 → references/lightweight-protocol.md",
+    "adaptation_guide": "references/subskill-adaptation-guide.md",
+    "lightweight_protocol": "references/lightweight-protocol.md",
+    "example_note": "本表随包发布的 F1 为参考实现示例——source_skill 指向作者本地仓库的原始 skill，请替换为你自己的（或删除 source_skill 字段后按 adaptation-guide 重新登记）",
+    "last_updated": "2026-08-27"
+  },
+  "subskills": {
+    "legal-scene-F1-consultation": {
+      "L2_id": "F1",
+      "name": "咨询（法律问题研究分析/跨领域/陌生领域/意见书）",
+      "path": "subskills/legal-scene-F1-consultation/SKILL.md",
+      "adapter_mode": "fused",
+      "source_skill": "法律相关skill自研仓库/法律问题研究分析",
+      "autonomous_mcp": [],
+      "light_layer": "layers/f1-1-quick.md",
+      "status": "active",
+      "see_provenance": true
+    }
+  },
+  "redirects": {},
+  "fallback": {
+    "description": "L2场景无专属子skill时走通用场景流程：查 scenario-map.md 功能组合列直接执行",
+    "note": "保证21场景即使无专属子skill也能先跑起来"
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "_meta": {
+    "generated": "2026-08-05",
+    "format_version": 1,
+    "description": "已知7个法律MCP的成本字典（框架知识库）。每次调用前查此表估算成本。档位全部来自实测（2026-07-24积分流水 + 元典list_apis官方API列表 + 用户确认）。未列出的工具按所属MCP default_cost计算。用户实际可用的MCP以 data/user-profile.json 的 mcp_inventory 为准（本表未收录的MCP = 知识库外，走通用模式：成本未知一律调用前确认）。",
+    "quota_types": {
+      "infinite": "无限免费（法信/FLK/RMFYALK），无需预算守护",
+      "recurring": "定期赠送积分（北大法宝/元典），用完等补，准免费——免费层不足时优先用",
+      "free_trial": "免费试用额度（法研30天/500次），用尽即止",
+      "one_time": "一次性稀缺（威科10次/工具），用完即止，最后用且须确认"
+    }
+  },
+  "server_alias": {
+    "_note": "宿主 MCP server 名 → 本字典 mcp key 的映射（hooks/auto_log_hook.py 与 backfill 用）。未列出的 server（企查查/天眼查/其他）不自动记账；引入新法律 MCP 时在此加一行。2026-08-28 依据本机 mcp.json 实际 server 名核对（28 server 全集）。",
+    "faxin-case": "faxin",
+    "faxin-laws": "faxin",
+    "flk": "flk",
+    "rmfyalk": "rmfyalk",
+    "fy-law-search-service": "fy-law-search",
+    "pkulaw-law": "pkulaw",
+    "pkulaw-law-search-service": "pkulaw",
+    "pkulaw-law-recognition": "pkulaw",
+    "pkulaw-fatiao": "pkulaw",
+    "pkulaw-case": "pkulaw",
+    "pkulaw-case-search-service": "pkulaw",
+    "pkulaw-case-number-recognition": "pkulaw",
+    "pkulaw-citation-validator": "pkulaw",
+    "pkulaw-add-doc-link": "pkulaw",
+    "yuandian-law": "yuandian",
+    "yuandian-case": "yuandian",
+    "wk-mcp": "wk-mcp"
+  },
+  "mcp": {
+    "faxin": {
+      "display": "法信（laws:18063 + case:18064）",
+      "type": "self-built",
+      "currency": "免费",
+      "quota_type": "infinite",
+      "default_cost": 0,
+      "tools": {
+        "faxin_law_search": 0,
+        "faxin_law_detail": 0,
+        "faxin_law_search_articles": 0,
+        "faxin_law_tab_detail": 0,
+        "faxin_law_filters": 0,
+        "faxin_law_filter_expand": 0,
+        "faxin_law_dropdowns": 0,
+        "faxin_law_export": 0,
+        "faxin_case_search": 0,
+        "faxin_case_aggs": 0,
+        "faxin_case_detail": 0,
+        "faxin_case_causes": 0,
+        "faxin_case_export": 0
+      }
+    },
+    "flk": {
+      "display": "国家法律法规数据库",
+      "type": "self-built",
+      "currency": "免费",
+      "quota_type": "infinite",
+      "default_cost": 0,
+      "tools": {
+        "flk_search": 0,
+        "flk_high_search": 0,
+        "flk_hit_display": 0,
+        "flk_high_hit_display": 0,
+        "flk_get_detail": 0,
+        "flk_get_enum": 0,
+        "flk_search_suggest": 0,
+        "flk_get_related": 0,
+        "flk_download": 0,
+        "flk_export_law": 0,
+        "flk_high_xgzl": 0
+      }
+    },
+    "rmfyalk": {
+      "display": "人民法院案例库",
+      "type": "self-built",
+      "currency": "免费（Token 4h需刷新）",
+      "quota_type": "infinite",
+      "default_cost": 0,
+      "tools": {
+        "rmfyalk_search": 0,
+        "rmfyalk_get_case": 0,
+        "rmfyalk_get_enum": 0,
+        "rmfyalk_get_statistics": 0,
+        "rmfyalk_export_case": 0,
+        "rmfyalk_check_token": 0
+      }
+    },
+    "pkulaw": {
+      "display": "北大法宝（9独立server）",
+      "type": "platform",
+      "currency": "积分",
+      "quota_type": "recurring",
+      "default_cost": 25,
+      "tools": {
+        "search_article": 125,
+        "search_case": 125,
+        "get_article": 125,
+        "get_law_item_content": 25,
+        "get_law_list": 25,
+        "get_case_list": 25,
+        "law_recognition": 125,
+        "anhao_recognition": 125,
+        "get_linked_content": 125,
+        "adjust_provisions": 125
+      },
+      "notes": [
+        "档位规律：'检索XX-关键词'类=25分；语义/智能识别/解析类=125分",
+        "get_article(125分)与get_law_item_content(25分)功能类似贵5倍——法条查询必须用25分工具",
+        "AGG聚合工具一律禁用，用独立server工具"
+      ]
+    },
+    "yuandian": {
+      "display": "华宇元典（law/case/company）",
+      "type": "platform",
+      "currency": "积分",
+      "quota_type": "recurring",
+      "default_cost": 5,
+      "tools": {
+        "yuandian_rh_ft_detail": 1,
+        "yuandian_rh_fg_search": 5,
+        "yuandian_rh_ft_search": 5,
+        "yuandian_rh_fg_detail": 5,
+        "yuandian_rh_ptal_search": 5,
+        "yuandian_rh_qwal_search": 5,
+        "yuandian_rh_case_details": 10,
+        "yuandian_law_vector_search": 15,
+        "yuandian_case_vector_search": 15,
+        "hall_detect": 50
+      },
+      "notes": [
+        "hall_detect = 幻觉检测，未封装MCP工具，走 scripts/hall_detect.py 直调HTTP API（50分/次）",
+        "工具调用名带 yuandian_ 前缀（如 yuandian_rh_ft_detail），勿用routeKey",
+        "企业信息类27个接口5-20分不等（尽调场景转调 company-investigation-memo，此处不展开）"
+      ]
+    },
+    "fy-law-search": {
+      "display": "法研法律法规检索",
+      "type": "platform",
+      "currency": "免费试用额度",
+      "quota_type": "free_trial",
+      "quota": "30天/500次",
+      "default_cost": 0,
+      "tools": {
+        "flfg_iterative_search_tool": 0,
+        "flfg_parallel_search_tool": 0
+      },
+      "notes": [
+        "仅法规场景（功能1/7），无语义引擎不用于语义检索",
+        "500次免费额度用尽即止"
+      ]
+    },
+    "wk-mcp": {
+      "display": "威科先行",
+      "type": "platform",
+      "currency": "试用次数",
+      "quota_type": "one_time",
+      "quota": "10次/工具",
+      "default_cost": 10,
+      "tools": {
+        "search_law": 10,
+        "search_law_keyword": 10,
+        "search_law_article": 10,
+        "search_case": 10,
+        "search_case_keyword": 10,
+        "legal_citation": 10
+      },
+      "notes": [
+        "一次性稀缺资源，用完即止——仅功能2关键语义难题用（唯一命中劳动法39条），须用户确认",
+        "tools值为'次'不是积分"
+      ]
+    }
+  },
+  "strategies": {
+    "confirm_threshold": {
+      "pkulaw_cap": "北大法宝单任务累计≤500分（约4次125分调用）——超限停下询问用户，不逐次确认（125分档工具多，逐次确认打断流程）",
+      "yuandian_cap": "元典单任务累计≤50分（≈1次hall_detect或10次5分检索）——元典积分省着用，超限停下询问用户",
+      "wk_confirm": "威科任何调用都逐次确认（一次性稀缺10次战略储备）——剩余≤3次停止使用",
+      "no_confirm": "法研（free_trial）、免费层（法信/FLK/RMFYALK）——无需确认",
+      "accumulated_warn": "北大法宝+元典积分池合计>300分 → 中途预警并询问是否继续",
+      "recurring_balance": "北大法宝/元典积分定期补——余额不足时等待补充而非改用更贵方案",
+      "free_trial_exhausted": "法研500次耗尽 → 法规场景升级北大法宝25分/元典1分"
+    }
+  }
+}

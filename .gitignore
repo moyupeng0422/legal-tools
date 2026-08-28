@@ -22,6 +22,8 @@ CLAUDE.local.md
 国家法律法规数据库MCP/SKILL.md
 *.json
 !package.json
+# 法律MCP路由Skill：registry/成本字典/hook 模板为框架必需配置，随包分发
+!法律MCP路由Skill/**/*.json
 
 # OS
 .DS_Store

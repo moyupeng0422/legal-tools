@@ -1,0 +1,17 @@
+{
+  "_readme": "法律MCP路由 skill · PostToolUse hook 自动记账配置模板。安装：把 hooks 段并入你的 Claude Code settings.json（~/.claude/settings.json 或项目 .claude/settings.json），把 <SKILL_DIR> 替换为本 skill 实际安装路径（正斜杠）。验证：跑一次法律 MCP 调用后查 <SKILL_DIR>/data/mcp_usage_log.jsonl 是否出现 agent=auto-hook 条目。卸载：删除本段即恢复手动记账，skill 协议零依赖本 hook。",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 15,
+            "command": "python \"<SKILL_DIR>/scripts/hooks/auto_log_hook.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

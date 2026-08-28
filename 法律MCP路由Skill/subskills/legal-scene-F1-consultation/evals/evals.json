@@ -1,0 +1,96 @@
+{
+  "skill_name": "legal-scene-F1-consultation",
+  "description": "F1咨询子skill回归测试集——验证L3复杂度分层判断 + 五阶段研究流程（融合模式）编排正确性（skill-creator规范evals）。执行方式：模拟总skill分发环境，向子agent传6要素（场景ID/需求/预算/子skill路径/速查卡路径/非法律MCP白名单）后验证分层判断与编排。2026-08-26 融合合并「法律问题研究分析」skill 后扩展为6条（新增 id 4-6 覆盖 Full 模式全链路/Quick 模式/IP专项策略加载）。",
+  "created": "2026-08-14",
+  "updated": "2026-08-26",
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-quick-consultation",
+      "prompt": "商标侵权的诉讼时效是多久？",
+      "expected_l3": "F1.1简单咨询",
+      "expected_functions": "功能1法条精准起手（免费层法信/FLK或元典1分）→ 功能7时效核验；不上125分语义",
+      "expected_output": "快答模板（结论+依据法条+时效标注），不落文件",
+      "assertions": [
+        "分层判断为F1.1而非F1.2/F1.3",
+        "功能2语义兜底只走免费层拆词/元典15分，不使用北大法宝125分",
+        "包含功能7时效核验",
+        "调用预算≤26分（元典1分+免费层）",
+        "快答虽不落文件，log_usage 记账与步骤汇报不豁免（衔接协议②③）"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "deep-consultation-with-case-number",
+      "prompt": "客户发来一个案子(2022)鲁0191民初3255号，让我们看看这个买卖合同纠纷怎么处理，我们对这块不太熟",
+      "expected_l3": "F1.2深度咨询",
+      "expected_functions": "Phase1问题拆解→Phase2功能1起手→功能7时效→Phase3功能3精准找案例（get_case_list fulltext案号查，坑位#21）→功能5类案检索→功能9法条关联资料（搭知识框架）",
+      "expected_output": "研究备忘录（8章报告模板：研究问题/简要结论/法律依据/裁判规则/典型案例/综合分析/结论与建议/引用来源）",
+      "assertions": [
+        "分层判断为F1.2（陌生领域+带案号双线索）",
+        "案号必须走功能3 get_case_list fulltext（非title/search_case的text，坑位#21/#22）",
+        "包含功能9法条下钻（法信link_*已修复验证可用）",
+        "类案检索走分析型规则（免费层多源→额度层至少1个）",
+        "Phase 4 综合分析按争议焦点 IRAC 展开",
+        "引用来源表 URL 按 citation-url-rules.md 构造，仅覆盖实际命中的库"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "formal-opinion-letter",
+      "prompt": "客户要求我们就这个技术许可合同的效力问题出具一份正式的咨询意见书",
+      "expected_l3": "F1.3咨询意见书",
+      "expected_functions": "F1.2全量研究（Phase1-5）+ 功能6权威案例（RMFYALK免费/北大法宝25分）+ 功能8防幻觉（hall_detect 403降级为功能1+3+7核验）",
+      "expected_output": "正式意见书模板（咨询事项/法律分析/结论意见/风险提示/免责声明）",
+      "assertions": [
+        "分层判断为F1.3（正式交付线索）",
+        "功能8防幻觉走降级链（功能1法条存在性+功能3案号真实性+功能7时效，免费到25分），不撞hall_detect 403；无案号场景跳过功能3",
+        "功能6权威案例标注档位（RMFYALK免费/北大法宝25分），caseGrade空结果即止损改免费源，预算预留2次50分",
+        "引用满足三维度：来源清晰/可追溯回查/已校验"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "full-mode-ip-research",
+      "prompt": "客户生产的一款产品被诉侵犯发明专利权，对方主张等同侵权。请分析等同侵权认定的法律标准和司法实践。",
+      "expected_l3": "F1.2深度咨询",
+      "expected_functions": "Phase1识别侵权判定>等同侵权>专利法领域（知识产权案件→加载ip-strategies.md）→Phase2功能1定位专利法+司法解释→Phase3功能5裁判规则（等同侵权/禁止反悔/现有技术抗辩并行）+功能6典型案例→Phase4 IRAC+不同观点→Phase5八章报告",
+      "expected_output": "结构化研究报告（落盘002研究文章）：一、研究问题 二、简要结论（确定性分级）三、法律依据（完整原文）四、裁判规则 五、典型案例（论理链条）六、综合分析（IRAC×争议焦点+不同观点梳理）七、结论与建议 八、引用来源表",
+      "assertions": [
+        "L3判F1.2且自动加载 references/ip-strategies.md",
+        "Phase3 功能5（法信裁判规则）+功能6（RMFYALK）并行检索",
+        "Phase4 按争议焦点 IRAC 展开，如有不同观点分别陈述",
+        "报告按 report-template.md 8章结构生成，结论先行",
+        "引用来源表链接按 citation-url-rules.md 构造，仅覆盖实际命中的库（禁止编造未收录库的链接）"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "quick-mode-statute-query",
+      "prompt": "商标法第 57 条规定了几种侵权行为？",
+      "expected_l3": "F1.1简单咨询",
+      "expected_functions": "功能1定向检索（1-2库，免费层优先）→ 功能7时效确认 → 直接回答",
+      "expected_output": "对话内直接回答法条原文，附来源引用，不生成完整报告文件",
+      "assertions": [
+        "L3判F1.1（Quick模式），不进入完整五阶段流程",
+        "功能1定向检索确定最匹配的1-2个数据源",
+        "直接回答附法条原文与来源标注",
+        "log_usage 记账不豁免"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "ip-strategies-loading",
+      "prompt": "商业秘密案件：员工跳槽带走客户名单，构不构成侵犯商业秘密？",
+      "expected_l3": "F1.2深度咨询",
+      "expected_functions": "Phase1识别商业秘密侵权判定（知识产权案件→加载ip-strategies.md）→Phase2功能1定位反不正当竞争法第9条→Phase3功能5（商业秘密/保密措施/客户名单/竞业限制 商业秘密并行）+功能6典型案例",
+      "expected_output": "研究备忘录/报告（构成要件+侵权行为双线分析）",
+      "assertions": [
+        "自动加载 references/ip-strategies.md 并按商业秘密段执行",
+        "裁判规则检索覆盖构成要件（秘密性/保密措施/商业价值）与侵权行为双线词组",
+        "反不正当竞争法第9条定位走功能1（法条原文完整引用）",
+        "注意与竞业限制劳动争议交叉的提示"
+      ]
+    }
+  ]
+}

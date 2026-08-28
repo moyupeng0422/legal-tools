@@ -1,0 +1,18 @@
+{
+  "description": "法律MCP路由 skill · Codex 宿主 PostToolUse 自动记账。安装三步：① 把 hooks 段并入 ~/.codex/hooks.json（或项目 .codex/hooks.json，后者需项目受信任）；② 把 <SKILL_DIR> 替换为本 skill 实际安装路径（正斜杠）；③ 在 Codex CLI 内运行 /hooks 审核并信任本 hook——非托管 hook 按定义 hash 记信任，未信任会被静默跳过（启动时 Codex 会打印提醒）。注意：非交互 codex exec 默认审批策略可能阻断 MCP 调用（approval policy=never 时调用在执行前被拦），正式使用请用交互式会话。验证：跑一次法律 MCP 调用后查 <SKILL_DIR>/data/mcp_usage_log.jsonl 是否出现 agent=auto-hook、host=codex 条目。卸载：删除本段或 /hooks 禁用即恢复手动记账，skill 协议零依赖本 hook。可选：给 handler 加 async:true 可后台记账（零等待），但会话结束时未完成的 async hook 会被取消——有丢最后几条账的风险，默认同步更稳。",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 15,
+            "command": "python \"<SKILL_DIR>/scripts/hooks/auto_log_hook.py\"",
+            "commandWindows": "python \"<SKILL_DIR>/scripts/hooks/auto_log_hook.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
