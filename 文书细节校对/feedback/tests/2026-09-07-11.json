@@ -1,0 +1,8 @@
+{
+  "id": "2026-09-07-11",
+  "module": "M8",
+  "text": "原告特向杭州中院提起诉讼。",
+  "expect_issue_type": "M8_法院名称",
+  "expect_original_text": "杭州中院",
+  "description": "法院简称建议须含市（旧版拼出杭州中级人民法院丢市）"
+}

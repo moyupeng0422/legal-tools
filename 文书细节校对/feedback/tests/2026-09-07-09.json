@@ -1,0 +1,8 @@
+{
+  "id": "2026-09-07-09",
+  "module": "M4",
+  "text": "违约金人民币壹拾万元整（￥100,001.00 元）。",
+  "expect_issue_type": "M4_大小写",
+  "expect_original_text": "壹拾万元整",
+  "description": "大小写金额不一致命中"
+}

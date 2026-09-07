@@ -1,0 +1,4 @@
+# 回归样本目录
+
+每个漏检案例一个 JSON 文件（格式见 run_regression.py 文档字符串）。
+命名：`YYYY-MM-DD-NN.json`（与 cases.md 条目 ID 一致）。

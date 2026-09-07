@@ -1,0 +1,55 @@
+[
+  {
+    "search": "2025年",
+    "issue_type": "M6_日期逻辑提示",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "日期需人工核对"
+  },
+  {
+    "search": "2025年",
+    "issue_type": "M7_引用",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "occurrence=3 消歧用例",
+    "occurrence": 3
+  },
+  {
+    "search": "2025年",
+    "issue_type": "M7_引用",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "context 唯一消歧用例",
+    "context_after": "2月20日"
+  },
+  {
+    "search": "2025年",
+    "issue_type": "M7_引用",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "occurrence 与 context 冲突用例",
+    "occurrence": 1,
+    "context_after": "2月20日"
+  },
+  {
+    "search": "委 拖",
+    "issue_type": "M5_错别字",
+    "severity": "严重",
+    "action": "replace",
+    "suggested_text": "委托",
+    "comment_text": "含空格的搜索串用例"
+  },
+  {
+    "search": "2025年",
+    "issue_type": "M7_引用",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "occurrence 越界用例",
+    "occurrence": 99
+  }
+]

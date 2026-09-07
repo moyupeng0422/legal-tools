@@ -24,6 +24,8 @@ CLAUDE.local.md
 !package.json
 # 法律MCP路由Skill：registry/成本字典/hook 模板为框架必需配置，随包分发
 !法律MCP路由Skill/**/*.json
+# 文书细节校对：回归样本与 locate 定位样本为测试资产，随包分发
+!文书细节校对/**/*.json
 
 # OS
 .DS_Store

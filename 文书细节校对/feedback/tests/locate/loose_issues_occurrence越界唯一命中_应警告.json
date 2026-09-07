@@ -1,0 +1,11 @@
+[
+  {
+    "search": "签定",
+    "issue_type": "M5_错别字",
+    "severity": "严重",
+    "action": "replace",
+    "suggested_text": "签订",
+    "comment_text": "“签定”应为“签订”",
+    "occurrence": 2
+  }
+]

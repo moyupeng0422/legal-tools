@@ -1,0 +1,66 @@
+[
+  {
+    "search": "自___年___月___日起至___年___月___日止",
+    "issue_type": "M1_模板残留",
+    "severity": "致命",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "服务期限起止日期为空白占位符，起诉前必须核实补齐实际约定日期"
+  },
+  {
+    "search": "[请填写]",
+    "issue_type": "M1_模板残留",
+    "severity": "致命",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "联系人字段为模板占位符，需补齐"
+  },
+  {
+    "search": "杭州云启信息科技有限公司",
+    "issue_type": "M2_一致性",
+    "severity": "严重",
+    "action": "replace",
+    "suggested_text": "杭州云启信息技术有限公司",
+    "comment_text": "被告名称前后不一致：首部为“杭州云启信息技术有限公司”，此处漏“技术”二字，应以营业执照登记名称统一"
+  },
+  {
+    "search": "订金5万元",
+    "issue_type": "M5_术语",
+    "severity": "严重",
+    "action": "replace",
+    "suggested_text": "定金5万元",
+    "comment_text": "后文以“收取定金后……依法应予返还”主张定金权利，此处应为“定金”；“订金”无定金罚则效力"
+  },
+  {
+    "search": "委拖",
+    "issue_type": "M5_错别字",
+    "severity": "严重",
+    "action": "replace",
+    "suggested_text": "委托",
+    "comment_text": "“委拖”为错别字，应为“委托”"
+  },
+  {
+    "search": "被告法人张某",
+    "issue_type": "M5_术语",
+    "severity": "严重",
+    "action": "replace",
+    "suggested_text": "被告法定代表人张某",
+    "comment_text": "“法人”指公司本身，自然人张某应为“法定代表人”，法律概念混用"
+  },
+  {
+    "search": "验收详见证据五",
+    "issue_type": "M7_引用",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "全文证据清单仅列至证据四，未见“证据五”，引用链断裂，请核对编号或补充对应证据"
+  },
+  {
+    "search": "合同第3.2条",
+    "issue_type": "M7_引用",
+    "severity": "一般",
+    "action": "comment_only",
+    "suggested_text": "",
+    "comment_text": "全文未见第3.2条约定内容，无法核对条款是否存在及内容是否引用准确"
+  }
+]
