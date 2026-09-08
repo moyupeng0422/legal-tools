@@ -30,16 +30,36 @@ def check(content) -> list:
 
 
 def _check_case_number_format(content) -> list:
-    """检查案号格式"""
+    """检查案号格式
+
+    2026-09-08 缺陷修复（芭迪实测，discussions/2026-09-08-实测新缺陷两则.md 缺陷二）：
+    旧版第三条 bad_patterns 从 (\\d{4}) 起匹配、(\\S+?) 贪吞 ")浙0106"，把半角括号
+    案号 (2025) 误诊为"缺括号"；匹配起点落在 "(" 之后导致批注锚点截断；且正确示例
+    自身用半角括号——用户照改后仍命中，形成误报死循环。
+
+    现改为：匹配完整案号形态（括号字符入捕获组）后按括号形态四态分支——
+      全角配对 （2025）→ 规范，不报
+      半角配对 (2025)  → 应改为全角
+      完全无括号 2025  → 补括号
+      左右不配对       → 报错
+    original_text 取 m.group() 全量（含左括号），保证批注锚点完整。
+    """
     issues = []
     from checker import Issue
 
-    # 案号正则：(YYYY)XX...X第XXX号 或多余"字"
+    # 示范文本必须自身合规：案号年份括号规范为全角
+    EXAMPLE = "（2025）浙01民初123号"
+
+    # 全角括号案号带多余"第"/"字第"（维持原有两条，仅全角形态）
     bad_patterns = [
         (re.compile(r'（(\d{4})）(\S+?)第(\d+)号'), "案号中不应有'第'字"),
         (re.compile(r'（(\d{4})）(\S+?)字第(\d+)号'), "案号中不应有'字第'"),
-        (re.compile(r'(\d{4})(\S+?)(民|行|刑|商)(初|终|再)(\d+)号'), "案号缺少括号"),
     ]
+
+    # 完整案号形态：[左括号] YYYY [右括号] 法院代字 类型字 程序字 编号 号
+    _RE_CASE_NO_SHAPE = re.compile(
+        r'([（(]?)(\d{4})([)）]?)(\S+?)(民|行|刑|商|执)(初|终|再|监|恢)(\d+)号'
+    )
 
     for para in content.paragraphs:
         for pattern, desc in bad_patterns:
@@ -54,8 +74,37 @@ def _check_case_number_format(content) -> list:
                     severity="严重",
                     action="comment_only",
                     original_text=m.group(),
-                    comment_text=f"[M8] 案号格式疑似错误：'{m.group()}'——{desc}。正确格式示例：(2025)浙01民初123号",
+                    comment_text=f"[M8] 案号格式疑似错误：'{m.group()}'——{desc}。正确格式示例：{EXAMPLE}",
                 ))
+
+        # 四态分支检测
+        for m in _RE_CASE_NO_SHAPE.finditer(para.text):
+            left, right = m.group(1), m.group(3)
+            if left == "（" and right == "）":
+                continue  # 全角配对：规范形态，通过
+            whole = m.group()
+            suggested = f"（{m.group(2)}）{m.group(4)}{m.group(5)}{m.group(6)}{m.group(7)}号"
+            if left and right:
+                # 半角配对 (2025)
+                desc = f"案号年份括号使用了半角括号，应改为全角：{suggested}"
+            elif not left and not right:
+                # 完全无括号
+                desc = f"案号缺少年份括号，应为：{suggested}"
+            else:
+                # 左右不配对（含只有一侧）
+                desc = "案号年份括号左右不配对，请核实（应为一对全角括号）"
+            issues.append(Issue(
+                location_type="paragraph",
+                para_index=para.index,
+                cell_ref=None,
+                start_offset=m.start(),
+                end_offset=m.end(),
+                issue_type="M8_案号格式",
+                severity="严重",
+                action="comment_only",
+                original_text=whole,
+                comment_text=f"[M8] 案号格式疑似错误：'{whole}'——{desc}。正确格式示例：{EXAMPLE}",
+            ))
 
     return issues
 

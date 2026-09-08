@@ -140,7 +140,7 @@ python checker.py "文书.docx" --issues-json ai_issues.json --mech-json mech.js
 ## 回归测试
 
 ```bash
-# 机械模块回归（12 个样本，含反向防误报样本）
+# 机械模块回归（16 个样本，含反向防误报样本）
 python feedback/run_regression.py
 
 # locate 定位回归（5 个场景；场景 C/E 随仓库分发可直接跑）
@@ -161,7 +161,7 @@ PROOFREAD_TEST_ASSETS=/path/to/your/test/assets python feedback/tests/locate/ver
 ├── rules/              # 8 个校验模块（M1~M8）
 ├── references/         # AI 语义审查的规则参考文件（01~08 + 输出指南）
 └── feedback/           # 自我进化：漏检案例库 + 一句话经验 + 回归测试
-    └── tests/          # 12 个机械回归样本 + locate/ 5 个定位回归场景
+    └── tests/          # 16 个机械回归样本 + locate/ 5 个定位回归场景
 ```
 
 ## 已知边界
@@ -170,6 +170,7 @@ PROOFREAD_TEST_ASSETS=/path/to/your/test/assets python feedback/tests/locate/ver
 - COM 路径使用 Word 全局段落编号（含表格内段落），与 python-docx 编号在表格前置文档中存在错位；默认 `--mode auto` 走 OOXML 可规避，且 COM 写入前有原文包含性校验兜底
 - OOXML 词级修订对文本框、SDT 内容控件等复杂结构覆盖有限，此类文档建议显式 `--mode com`
 - `--issues-json` 不校验字段枚举（locate_issues.py 才校验），建议始终经 Step 3.5 生成语义 Issue
+- 案号检测（M8）："半角括号+第字"形态（如 `(2025)浙01民初第456号`）暂不报（旧版既有盲区）；全角左+半角右混合括号归入"半角括号"提示（建议重建正确，下批修正归类）
 
 ## 免责声明
 

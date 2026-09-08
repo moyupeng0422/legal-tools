@@ -1,0 +1,8 @@
+{
+  "id": "2026-09-08-04",
+  "module": "M8",
+  "text": "案号：（2025）浙0106民初456号，本院已立案受理。",
+  "expect_issue_type": "M8_案号格式",
+  "expect_absent": true,
+  "description": "全角配对规范案号不报（四态之四，防误报回归）"
+}
