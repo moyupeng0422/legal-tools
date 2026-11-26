@@ -10,7 +10,7 @@
 | 日期 | 类型 | 工具 | 版本 | 更新要点 |
 |------|------|------|------|----------|
 | 2026-11-26 | 更新 | Hermes与Claude Code协作 | v4.1.0 | Print Mode (claude -p) 轻量化定位（决策树：默认 tmux + 五件套，单次分析类可用 -p）+ 五件套脚本化（cc-send/cc-wait/cc-mode/cc-approve/cc-start，根治同帧吞 Enter）+ 辩论豁免声明制 + 协议 v2.1（ACK 指纹/done 语义/PAUSE/回滚策略）+ references 32→35 + pitfalls 137→144 条；环境值全面占位符化 |
-| 2026-11-26 | 更新 | Hermes与WorkBuddy飞书协作 | v2.1.0 | 架构整体重写为协议 v1.8「零机械架构」：v3.0 的 status.json 状态灯轮询/飞书 API 备用轮询/卡片承载内容等机制全面替换 → sleep 等待主链路（badi-wait.py）+ 卡片唤醒；确立单卡片铁律、禁@铁律（bot 间消息不投递实证）、conv 内容权威/看板状态权威、pending-op 权限卡分型；双端发布（含 workbuddy-side/ 芭迪侧材料），脚本参数化脱敏 |
+| 2026-11-26 | 更新 | Hermes与WorkBuddy飞书协作 | v2.1.0 | 架构整体重写为协议 v1.8「零机械架构」：v3.0 的 status.json 状态灯轮询/飞书 API 备用轮询/卡片承载内容等机制全面替换 → sleep 等待主链路（badi-wait.py）+ 卡片唤醒；确立单卡片铁律、交互由 Hermes 发起持有（@会拉起对方新对话）、conv 内容权威/看板状态权威、pending-op 权限卡分型；双端发布（含 workbuddy-side/ 芭迪侧材料），脚本参数化脱敏 |
 | 2026-09-08 | 修复 | 文书细节校对 Skill | v1.0.1 | M8 案号检测四态分支修复：半角括号 `(2025)` 不再误诊为"缺括号"、批注锚点含左括号不再截断、正确示例全角化（消除照改后仍命中的误报死循环）；回归样本 12→16 |
 | 2026-09-07 | 新增 | 文书细节校对 Skill | v1.0.0 | 法律文书 AI 校对流水线：8 校验模块（机械+语义双引擎）+ locate 定位脚本（AI 出判断、脚本管定位）+ 三级 Writer 输出 Word Track Changes/批注 + 漏检案例自我进化机制 |
 | 2026-08-28 | 新增 | 法律MCP路由Skill | v1.0.0 | 7 个法律 MCP 的过程管控路由总 skill：场景识别 → 子 agent 分发 → 止损红线/预算守护/调用安全，含子 skill 适配层与多宿主（CC/WorkBuddy/Codex）hook 自动记账 |
@@ -69,7 +69,7 @@
 | **法律MCP路由Skill** | 7 个法律 MCP（北大法宝/元典/威科/法研等）的过程管控路由总 skill：场景识别 → 子 agent 分发 → 止损红线/预算守护/调用安全审计；含参数速查卡、坑位清单、子 skill 适配层（壳/融合两模式）与多宿主 hook 自动记账，附 F1 咨询参考实现 | MIT | v1.0.0 | 按需配置法律 MCP（免费层 MCP 可直接跑；计费层 MCP 需各自授权） | [目录](%E6%B3%95%E5%BE%8BMCP%E8%B7%AF%E7%94%B1Skill/) |
 | **法律问题研究分析** | 整合两大 MCP 多源法律检索与综合分析，Quick/Full 双模式，输出 Obsidian/DOCX 研究报告 | MIT | — | 依赖上述两个 MCP 服务器 | [目录](%E6%B3%95%E5%BE%8B%E9%97%AE%E9%A2%98%E7%A0%94%E7%A9%B6%E5%88%86%E6%9E%90/) |
 | **Hermes与Claude Code协作** | 双 AI Agent 结构化协作规范（Print Mode 优先 + SSH+tmux 五件套脚本），含 CC 端协议、监控辩论、错误恢复等 35 个参考文档 | MIT | v4.1.0 | 需本地 Hermes 环境 | [目录](Hermes%E4%B8%8EClaude%20Code%E5%8D%8F%E4%BD%9C/) |
-| **Hermes与WorkBuddy飞书协作** | 云端 Hermes 经飞书群卡片下发 + conv 文件回传指挥 WorkBuddy（协议 v1.8 零机械架构：sleep 等待主链路、单卡片/禁@铁律、看板状态权威），含 WorkBuddy 端 counterpart（workbuddy-side/） | MIT | v2.1.0 | 需 Hermes + 飞书环境 | [目录](Hermes%E4%B8%8EWorkBuddy%E9%A3%9E%E4%B9%A6%E5%8D%8F%E4%BD%9C/) |
+| **Hermes与WorkBuddy飞书协作** | 云端 Hermes 经飞书群卡片下发 + conv 文件回传指挥 WorkBuddy（协议 v1.8 零机械架构：sleep 等待主链路、单卡片/交互由 Hermes 持有、看板状态权威），含 WorkBuddy 端 counterpart（workbuddy-side/） | MIT | v2.1.0 | 需 Hermes + 飞书环境 | [目录](Hermes%E4%B8%8EWorkBuddy%E9%A3%9E%E4%B9%A6%E5%8D%8F%E4%BD%9C/) |
 
 ### 📖 操作指南
 
