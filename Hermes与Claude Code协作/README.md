@@ -13,13 +13,13 @@
 
 ## v3.x → v4.0 主要变化
 
-### ① Print Mode (`claude -p`) 成为推荐方式
+### ① Print Mode (`claude -p`)：一次性任务的轻量替代
 
-新增决策树：**能用 `-p` 就不用 tmux**。Print Mode 零截断风险、无需 capture-pane 轮询、权限精确可控（`--allowedTools`）；只有需要多轮辩论（R1→R2→R3 维持上下文）时才走 tmux。
+新增决策树：**默认 tmux + 五件套（保持会话上下文与多轮辩论能力）**；仅单次、无上下文依赖的分析/审查类任务可用 `-p`。Print Mode 零截断风险、无需 capture-pane 轮询、权限精确可控（`--allowedTools`）。
 
 ```
-一次性任务 / 纯分析 / 单轮写文件 → Print Mode (-p)
-需要多轮辩论或长会话上下文      → tmux（配合五件套脚本）
+一次性分析 / 单轮审查（无需延续上下文）→ Print Mode (-p)
+多轮辩论 / 长会话 / 需要会话连续性      → tmux（配合五件套）【默认】
 ```
 
 ### ② 五件套脚本化（`scripts/cc-tools/`，2026-11 定稿）
@@ -30,7 +30,7 @@
 |------|------|
 | `cc-send.sh` | 结构化发消息（文本与 Enter 拆分发送 + 发后验证） |
 | `cc-wait.sh` | 等待 CC 回复（capture-pane 轮询 + thinking 标记检测） |
-| `cc-mode.sh` | 切换 CC 权限模式（plan / accept edits 等） |
+| `cc-mode.sh` | 切换 CC 权限模式（plan / accept edits / **auto** / normal）；发执行类任务前切 auto 可避免权限弹窗 |
 | `cc-approve.sh` | 处理权限弹窗审批 |
 | `cc-start.sh` | 六步法启动 CC（`CC_PROJECT_DIR` 环境变量指定项目目录） |
 
@@ -50,7 +50,7 @@
 
 新增 4 篇：`cc-mode-approve-scripts.md`（五件套详解）、`cc-project-migration.md`（项目迁移）、`cc-project-archival.md`（项目归档）、`skill-creation-workflow.md`（skill 开发流程）。
 
-### ⑥ pitfalls 134 → 144 条
+### ⑥ pitfalls 137 → 144 条
 
 完整集 `references/pitfalls.md`（884 行）新增 v4.x 批次：#150（plan mode 假更新）、#157（Skill() 无法加载本地 skill）、#20a 重写版（send-keys 文本与 Enter 拆分，推翻旧同帧铁律）、#47b/c/d/e（DISCUSS 标记合法性 / 分段发送假阳性截断 / 完成状态误判 / Skill 加载）。SKILL.md 另保留 ~26 条核心高频。
 
@@ -75,12 +75,13 @@
 # 1. 前置：Tailscale 连通 + SSH 免密（端口 2222）
 ssh -o ConnectTimeout=10 <windows-username>@<windows-tailscale-ip> "echo OK"
 
-# 2. 一次性任务（推荐）：Print Mode
+# 2. 一次性分析类任务：Print Mode（可选）
 claude -p "分析这个专利的有效性" --output-format json --max-turns 10
 
-# 3. 长会话/辩论任务：tmux + 五件套
+# 3. 长会话/辩论任务（默认）：tmux + 五件套
 export CC_PROJECT_DIR="<projects-root>"
 bash scripts/cc-tools/cc-start.sh        # 六步法启动
+bash scripts/cc-tools/cc-mode.sh auto    # 执行类任务先切 auto，避免权限弹窗
 bash scripts/cc-tools/cc-send.sh "任务描述"
 bash scripts/cc-tools/cc-wait.sh         # 等待回复
 ```
