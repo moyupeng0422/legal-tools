@@ -52,7 +52,7 @@ ssh -p <port> user@windows \
 
 ```bash
 # 云端执行：从 Windows 拉取已打包的 tar.gz 到云端解压
-ssh local-win 'powershell -Command "[Console]::OpenStandardOutput().Write([System.IO.File]::ReadAllBytes(\"C:\\Users\\<Windows_用户名>\\AppData\\Local\\Temp\\package.tar.gz\"),0,[System.IO.File]::ReadAllBytes(\"C:\\Users\\<Windows_用户名>\\AppData\\Local\\Temp\\package.tar.gz\").Length)"' | tar -xzf - -C <云端用户目录>/target/
+ssh local-win 'powershell -Command "[Console]::OpenStandardOutput().Write([System.IO.File]::ReadAllBytes(\"C:\Users\<windows-username>\\AppData\\Local\\Temp\\package.tar.gz\"),0,[System.IO.File]::ReadAllBytes(\"C:\Users\<windows-username>\\AppData\\Local\\Temp\\package.tar.gz\").Length)"' | tar -xzf - -C /home/ubuntu/target/
 ```
 
 **原理**：PowerShell 将文件以原始字节写入 stdout，通过 SSH pipe 传到云端，tar 从 stdin 解压。不依赖 Windows 端 tar 命令。
@@ -97,10 +97,10 @@ cd /tmp && python3 -m http.server 18888 --bind 0.0.0.0
 # === Windows（CC侧） ===
 
 # 3. CC 通过 curl 下载（从 tmux session 内执行）
-curl -s http://<云端_Tailscale_IP>:18888/package.tar.gz -o C:\Users\<Windows_用户名>\package.tar.gz
+curl -s http://<cloud-tailscale-ip>:18888/package.tar.gz -o C:\Users\<windows-username>\package.tar.gz
 
 # 4. 文件到达后解压分析
-tar xzf "C:/Users/<Windows_用户名>/package.tar.gz" -C /tmp/extract
+tar xzf "C:/Users/<windows-username>/package.tar.gz" -C /tmp/extract
 ```
 
 ### 说明
@@ -116,7 +116,7 @@ tar xzf "C:/Users/<Windows_用户名>/package.tar.gz" -C /tmp/extract
 
 SCP 在以下场景会失败：
 
-1. **路径空格**：`scp "D:/claude vscode/target/*" user@host:dest/` — 通配符 `*` 被本地 shell 展开后路径含空格，SCP 无法解析
+1. **路径空格**：`scp "D:/<projects-root>/target/*" user@host:dest/` — 通配符 `*` 被本地 shell 展开后路径含空格，SCP 无法解析
 2. **中断无原子性**：传输中途失败导致部分文件到达、部分丢失，状态不确定
 3. **目录必须全路径存在**：SCP 要求目标子目录结构精确存在，中途创建失败则整批中断
 4. **Tailscale relay 下超时**：延迟~350ms 时大文件在 timeout 内无法完成

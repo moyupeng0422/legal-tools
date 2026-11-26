@@ -1,7 +1,7 @@
 ---
 name: hermes-claude-collaboration
 description: "MANDATORY first skill to load when Hermes needs to orchestrate Claude Code on local Windows via SSH+tmux. Covers session lifecycle, monitoring (capture-pane), R1/R2/R3 debate protocol, error recovery, and bulk file transfer. Trigger whenever: (1) user requests local file operations/code modifications/script runs/Git ops on Windows; (2) Hermes needs to monitor CC execution and handle popups/errors; (3) post-execution verification is required before replying to user. Do NOT use when CC is connected via Feishu bridge — use feishu-agent-collab skill instead."
-version: 3.41.0
+version: 4.1.0
 author: Custom
 tags: [claude-code, ssh, tmux, orchestration, collaboration]
 ---
@@ -125,30 +125,16 @@ capture-pane 看到的内容分三个独立区域：
 区域③ 底部状态栏 → ⏸ plan mode on / ⏵⏵ accept edits on / 无标记=normal | X% until auto-compact
 区域③包含两部分：左侧是 UI 模式（影响发送方式），右侧是 auto-compact 百分比（context 使用率）。空闲判断不看区域③，但监控中应关注 auto-compact 百分比——接近阈值（~90%）时 CC 即将自动压缩上下文，可提前预判。
 
-### 🚨 CC 启动序列铁律（六步法，不可跳步）
+### 🚨 CC 启动序列（v5 脚本化，2026-11-22）
 
-> ⚠️ **这是协作中最高频的违规点（#89 #90 #48），已多次被纠正又反复再犯。每次启动或恢复 CC 会话前，必须严格按以下顺序执行，不可凭记忆省略任何一步。**
+**唯一方式：`~/.hermes/scripts/cc-start.sh "<任务名>"`**——一条命令完成六步（SSH连通→cd→启动claude→HERMES-ACTIVATE→/rename→task_map落库），每步逐项验证，任一步失败即停并输出现场。
 
-```
-Step 1  ssh local-win                          ← 先连 SSH，确认连通
-Step 2  cd /d "D:\项目目录"                     ← 进入项目目录（不是 C:\Users\<Windows_用户名>！）
-Step 3  claude --model glm-5.2             ← 正常模式启动
-Step 4  <!-- HERMES-ACTIVATE -->                ← 激活协作模式，等确认后继续
-Step 5  /rename Hermes:<任务名>                 ← 带前缀，capture-pane 确认命名成功
-Step 6  /resume <会话名>                       ← 仅恢复旧对话时，CC 内部命令
-```
+- 任务名自动补 `Hermes:` 前缀；可带第二参数指定项目目录
+- 已有活跃 CC session 时拒绝执行（防误重建），先 kill 再启动
+- 终态输出 `START_OK: 任务名 | MODE_OK:xxx | 输入框干净`
+- ⚠ 启动后默认 normal 模式：发讨论/TASK 前 `cc-mode.sh plan`，CC 执行操作前 `cc-mode.sh auto`
 
-**新对话**：Step 1-5 完成后发 TASK
-**恢复旧对话**：Step 1-5 完成后执行 Step 6
-
-**🚫 启动命令中绝对禁止出现的参数：**
-- `--resume` / `--continue`（应在 CC 内部执行，#5 #45 #90）
-- `--dangerously-skip-permissions`（危险，#2 #89）
-
-**弹窗处理（Step 3 过程中）：**
-- Bypass Permissions 警告：`2` = Yes accept，`1` = No exit。**误按 1 会导致 CC 退出**
-- 多个弹窗堆叠时：不要逐个通过，直接 kill session 重建
-```
+**旧六步法（手动 send-keys 逐条）已废弃**——历史违规源（漏 rename #48、C盘启动 #89、--resume 误用 #90）全部由脚本防呆。
 
 **空闲判断铁律：只看区域①，不看区域③。** accept edits、plan mode、normal mode 都是 UI 模式，只要区域①无 emoji 标记就是空闲，可以发指令。区域③只决定发送方式（accept edits 用短 send-keys，不用 paste-buffer）。
 
@@ -175,6 +161,21 @@ tmux send-keys -t claude-session '<!-- HERMES-ACTIVATE -->' Enter
 
 CC 检测到 `<!-- HERMES-ACTIVATE -->` 或 `[HERMES:task-xxx]` 标记后，自动启用 `.claude/rules/hermes-collab.md` 中的协作规则（结构化格式、行为守则等）。无此标记时 CC 正常执行人类指令。
 
+### 📌 硬性工具链（2026-11-21 起，强制使用，禁止裸 tmux send-keys 发消息）
+
+> 背景：2026-11-21 确认「文本+Enter 同帧发送」会被 CC Ink 界面吞 Enter，消息永久卡框需用户手动回车（全天触发）。将正确操作固化为脚本，正确路径成为唯一路径。
+
+| 工具 | 用途 | 替代的裸操作 |
+|------|------|------------|
+| `~/.hermes/scripts/cc-send.sh "消息"`<br>`cc-send.sh -f 文件` | 发送消息：文本→sleep→Enter→**自动校验输入框清空**→残留自动补键→SEND_OK/SEND_FAIL | 裸 `send-keys '文本' Enter`（必卡框） |
+| `~/.hermes/scripts/cc-wait.sh -d 关键词 [-p] [-T 秒]` | 智能等待：关键词出现/CC空闲/弹窗/超时 四态即时返回，替代固定 sleep | 裸 `sleep N && capture-pane`（盲等） |
+
+**标准流程**：`cc-send.sh "..." && cc-wait.sh -d "期望标记"`。发送返回 SEND_FAIL 或等待返回 WAIT_POPUP/WAIT_TIMEOUT 时按输出处理，不得忽略。
+
+**技术要点（排查时参考）**：① CC 输入框裸提示符是 `>`+U+00A0 不换行空格，校验逻辑需字节级清洗（已内置于 cc-send.sh）② 忙碌判定 = emoji+省略号（如 `✽ Crystallizing…`），完成态无省略号（`✻ Baked for 5s`）③ `-f` 文件模式多行消息换行会被 tmux 折叠为一行（内容不丢）。
+
+以下旧式 tmux 命令仅保留两类用途：shell 层命令（cd/启动/内部命令如 /rename 等单键场景可直接 send-keys，因无长文本粘贴问题）和 C-c/BTab 等控制键。**所有自然语言消息一律走 cc-send.sh**。
+
 ### 基础操作循环
 
 每个与 CC 交互必须遵循：
@@ -182,22 +183,33 @@ CC 检测到 `<!-- HERMES-ACTIVATE -->` 或 `[HERMES:task-xxx]` 标记后，自�
 ```
 1. 前置检查（4 项确认）
 2. 任务命名 → 检查当前对话是否已命名；未命名则立即 `/rename 任务名` → 写入 `claude_task_map.json`（不等任务完成）
-3. send-keys / paste-buffer → 发送指令或任务（附状态摘要）
-4. 确认送达 → capture-pane 验证消息完整未被截断
-5. 等待 ACK 指纹 → CC 回显 task_id + step，Hermes 比对一致才认为投递成功
-6. poll (5-8s 间隔) → capture-pane 读取输出
-7. 判断状态 → 继续轮询 / 处理弹窗 / 处理 PAUSE / 读取结果 → 事实校验
-8. DONE 处理 → 检测 `<!-- DONE -->` 时提取 [TASK_MAP] 块 → 写入/更新 task_map 条目 → 执行 Verification Checklist → 汇报用户
-9. COMPLETE → 发 `<!-- COMPLETE:task-X -->` 标记 task 结束
+3. cc-send.sh 发送指令或任务（附状态摘要；脚本自动处理文本/Enter拆分+补键+清框校验）
+4. 脚本返回 SEND_OK 即视为送达（内置清框校验，无需再肉眼验证截断）
+5. cc-wait.sh -d "期望标记" → 等待 ACK/DONE 指纹，脚本自动识别空闲/弹窗/超时
+6. 判断状态 → WAIT_DONE/WAIT_IDLE 继续 / WAIT_POPUP 处理弹窗 / WAIT_TIMEOUT 检查 CC 状态 → 事实校验
+7. DONE 处理 → 检测 `<!-- DONE -->` 时提取 [TASK_MAP] 块 → 写入/更新 task_map 条目 → 执行 Verification Checklist → 汇报用户
+8. COMPLETE → 发 `<!-- COMPLETE:task-X -->` 标记 task 结束
 ```
 
-**状态摘要是强制的**：每条指令末尾必须附带 `[state: task_id=xxx step=M/N done=P next=xxx ctx=xxx]`，缺此行视为前置检查失败，不允许发送。
+**状态摘要是强制的**：每条指令末尾必须附带 `[state: id=xxx step=M/N done=P next=xxx ctx=摘要]`，缺此行视为前置检查失败，不允许发送。
+
+### 辩论豁免声明制（2026-11-22，硬约束——机制替代纪律）
+
+**规则**：凡收到 CC 方案类输出（DONE 的 STATUS 中 `output_type: analysis`，协议 v1.1 新增字段），回复用户前必须**三选一**：
+
+1. **发 [辩论]R2**——消息含 ≥1 个可证伪的具体质疑点，等 CC 回应后再汇报
+2. **声明豁免**——回复用户时带 `（豁免原因: xxx）`，合法豁免仅三种：①纯事实查询（无方案成分）②用户已拍板（无讨论空间）③纯执行细节确认（无新主张）
+3. **忽略（需理由）**——不推荐；忽略且不声明 = 传声筒违规
+
+**依据链**：CC 输出 `output_type: analysis` → cc-wait.sh 检测 DONE 时输出 `⚠ DEBATE_REQUIRED` → Hermes 执行上述三选一。豁免声明写入审计日志（/tmp/debate_exempt.log），月度复盘豁免率——豁免率高说明提醒规则需修，而非 Hermes 不守纪律。
+
+**依据**：#26 假辩论≠真辩论；用户 2026-11-22 指出 Hermes 反复传声筒，要求硬约束。正则判"方案类"不可靠（CC 否决），采用协议自声明（CC 是输出作者，自知事实）。
 
 **done 语义（v2.1 明确定义）**：`done` = 本 task 中已收到 DONE 确认的最高 step 编号。只升不降。`done < step` 表示当前步正在执行或失败待处理（正常）；`done = step` 表示当前步已完成；`done > step` 异常。
 
 **DONE 块解析**：CC 的 DONE 输出含 [TASK_MAP] 块时，Hermes 用正则 `\[TASK_MAP\](.*?)\[/TASK_MAP\]` 提取字段（task_id、step、done、session、timestamp），写入 `claude_task_map.json`。
 
-**发送策略**：accept edits 模式和 plan mode 下禁止 paste-buffer，用分段短 send-keys（每条 <300 字符，间隔 1-2s，≤10 条）。正常模式下长消息优先短 send-keys；确需 paste-buffer 时，消息 ≤500 字符且必须 A+B 双重确认。**超过 500 字符一律用短 send-keys 分段，不可 paste-buffer**——即使正常模式下 paste-buffer 也曾截断。
+**发送策略（2026-11-21 v4.1 修订）**：所有自然语言消息一律走 `cc-send.sh`（脚本自动拆分文本/Enter、自动补键、自动校验清框）。**TASK 消息必须单条整体发送**（`cc-send.sh -f 临时文件` 或单条直传）——分段连发会导致后续段落进入排队，CC 将 TASK 标记当独立消息处理，产生假阳性截断拒绝（47c）甚至漏执行要求项（2026-11-21 实测：task-5 三段连发，CC 只按第①段执行，②③要求漏掉）。长消息写临时文件走 `-f` 模式。paste-buffer 通道已废弃。单条指令步骤数 ≤3 的限制不变（CC 上下文限制，与发送工具无关）。
 
 **ACK 指纹（v2.1 新增）**：CC 收到指令后回显 ACK：
 ```
@@ -218,11 +230,11 @@ Hermes 比对 task_id + step 一致后才认为投递成功。30s 无 ACK 自动
 **回滚策略（v2.1 新增）**：ERROR/PAUSE 后 CC 不主动回滚。ERROR 中列出已修改文件清单（files_changed 字段），由 Hermes 决策是重试、跳过还是人工介入。文件追踪以 CC 自主记录为主（基于 Edit/Write 操作），不确定时标注 "files_changed": "uncertain"。
 
 70. **Tailscale relay 下大文件传输：HTTP server 优于 SCP/SSH pipe（2026-06-04 新增）**：当云端和 Windows 通过 Tailscale DERP relay（非直连 P2P，延迟 ~350ms）通信时：
-   - **SCP -P <SSH_端口>** 传输 >2MB 文件 → 持续超时（60s+ timeout 无效）
+   - **SCP -P 2222** 传输 >2MB 文件 → 持续超时（60s+ timeout 无效）
    - **SSH pipe**（`cat file | ssh "powershell ..."`）→ 同样超时
    - **Python HTTP server + curl** → 成功（2.6MB 最终完成，耗时约 90s）
 
-   推荐方案：云端启动临时 HTTP 服务器（`python3 -m http.server 18888 --bind 0.0.0.0`），CC 用 `curl -s http://<云端_Tailscale_IP>:18888/file.tar.gz -o C:\Users\<Windows_用户名>\file.tar.gz` 下载。HTTP 协议在低带宽高延迟链路上比 SCP 更健壮。
+   推荐方案：云端启动临时 HTTP 服务器（`python3 -m http.server 18888 --bind 0.0.0.0`），CC 用 `curl -s http://<cloud-tailscale-ip>:18888/file.tar.gz -o C:\Users\<windows-username>\file.tar.gz` 下载。HTTP 协议在低带宽高延迟链路上比 SCP 更健壮。
 
    详见 `references/bulk-file-transfer.md` 方向二。
 
@@ -230,30 +242,31 @@ Hermes 比对 task_id + step 一致后才认为投递成功。30s 无 ACK 自动
 
 | 操作 | 命令 |
 |------|------|
-| **Print mode（推荐）** | `claude -p "task" --output-format json --allowedTools "Read,Edit" --max-turns 10` |
+| **启动会话（唯一方式）** | `~/.hermes/scripts/cc-start.sh "<任务名>"`（六步脚本化+逐项验证，2026-11-22） |
+| **发送消息（唯一方式）** | `~/.hermes/scripts/cc-send.sh "消息"` 或 `-f 文件`（自动拆分文本/Enter+补键+校验） |
+| **智能等待（唯一方式）** | `~/.hermes/scripts/cc-wait.sh -d "标记"` / `-p`（弹窗） / `-q`（队列自愈） / `-T 秒`（超时）。v2：`-d` 自动排除用户输入回显行（只认 CC 输出）；CC 意译回复不含字面标记时正确超时而非假阳性——**`-d` 只用于协议约定 CC 原样输出的标记（ACK/DONE/PAUSE）**，自然语言确认用 WAIT_IDLE |
+| **模式切换（唯一方式）** | `~/.hermes/scripts/cc-mode.sh plan\|auto\|normal\|status`——讨论/发TASK前=plan，执行操作前=auto（2026-11-22 定稿，详见 references/cc-mode-approve-scripts.md） |
+| **权限弹窗处理（唯一方式）** | `~/.hermes/scripts/cc-approve.sh dump`（读分类）→ `cc-approve.sh <N>`（批准）——Hermes 只决策选号，机械操作全脚本承载；黑名单弹窗只能用户亲手 touch ~/.hermes/HUMAN_OK 放行 |
+| **Print mode（一次性任务）** | `claude -p "task" --output-format json --allowedTools "Read,Edit" --max-turns 10` |
 | 检查 session | `tmux has-session -t claude-session` |
 | 创建 session | `tmux new-session -d -s claude-session -x 200 -y 60` |
-| 启动 CC | `tmux send-keys -t claude-session 'cd /path && claude' Enter` |
-| 激活协作 | `tmux send-keys -t claude-session '<!-- HERMES-ACTIVATE -->' Enter` |
-| 发短消息 | `tmux send-keys -t claude-session '内容<300字' Enter` |
-| 发长消息 | `load-buffer` + `paste-buffer -d`（仅正常模式） |
-| 分段消息 | 短 send-keys 逐条发送，间隔1-2s，≤10条（plan/accept-edits模式） |
-| 确认送达 | `capture-pane -S -10` 肉眼检查 + 等待 ACK 指纹（30s 超时重发） |
+| 启动 CC（shell层，可裸send-keys） | `tmux send-keys -t claude-session 'cd /d "D:\\项目"' Enter; sleep 2; tmux send-keys -t claude-session 'claude' Enter` |
+| 激活协作 | `cc-send.sh '<!-- HERMES-ACTIVATE -->'` |
 | 监控状态 | `tmux capture-pane -t claude-session -p -S -20` |
 | 快速检查 | `tmux capture-pane -t claude-session -p -S -5` |
-| 接受权限 | `send-keys '数字'`/Down → capture-pane 验证 `>` 位置 → `Enter`（两拍法+验证） |
-| 中断操作 | `tmux send-keys -t claude-session C-c` |
-| Interview | `send-keys '数字'`/Down → capture-pane 验证 `>` → `Enter`（两拍法+验证） |
-| 命名对话 | `tmux send-keys -t claude-session '/rename 任务名' Enter` |
-| 切换对话（shell启动） | `tmux send-keys -t claude-session 'claude --resume 任务名' Enter` |
-| 切换对话（CC内部） | `tmux send-keys -t claude-session '/resume 任务名' Enter` |
-| 恢复旧对话（启动参数） | `tmux send-keys -t claude-session 'claude --model glm-5.2 --resume' Enter`（交互选择列表） |
-| 恢复指定对话 | `tmux send-keys -t claude-session 'claude --model glm-5.2 --resume' Enter` → 交互列表中选择（搜索不可靠，见 #111）|
-| 压缩上下文 | `tmux send-keys -t claude-session '/compact focus on 主题' Enter` |
-| 退出 CC | `tmux send-keys -t claude-session '/exit' Enter` |
-| 切换模式 | `tmux send-keys -t claude-session BTab` |
-| PAUSE 响应 | `send-keys 'RETRY/ABORT/CONTINUE/PAUSE-ACK' Enter` |
-| Task 完成 | `send-keys '<!-- COMPLETE:task-X -->' Enter` |
+| 接受权限（两拍法+验证） | `tmux send-keys -t claude-session '数字'; sleep 0.5; tmux capture-pane 验证>位置; tmux send-keys Enter` |
+| 中断操作 | `tmux send-keys -t claude-session C-c`（控制键可直接send-keys） |
+| 命名对话 | `cc-send.sh '/rename 任务名'` |
+| 切换对话（CC内部） | `cc-send.sh '/resume 任务名'` |
+| 压缩上下文 | `cc-send.sh '/compact focus on 主题'` |
+| 退出 CC | `cc-send.sh '/exit'` |
+| 切换模式 | `tmux send-keys -t claude-session BTab`（控制键） |
+| PAUSE 响应 | `cc-send.sh 'RETRY/ABORT/CONTINUE/PAUSE-ACK'` |
+| Task 完成 | `cc-send.sh '<!-- COMPLETE:task-X -->'` |
+
+> **已废弃（2026-11-21）**：`load-buffer`+`paste-buffer` 长消息通道（截断风险高，被 cc-send.sh -f 取代）；「分段短 send-keys 逐条发送」（被 -f 文件模式取代）；裸 `send-keys '文本' Enter`（同帧吞 Enter，必卡框）。
+
+> **模型说明**：CC 模型 2026-08-27 起 glm-5.2 → 用户可随时用 `/model` 切换（2026-11-21 已切 glm-5.3-flash[1M]）。启动命令用 `claude`（不带模型参数）即沿用用户默认配置；需要指定时用 CC 内部 `/model` 命令切换，勿写死在启动参数。
 
 **Hermes 直接执行（在云端本机，无需 SSH）：** 上表所有 `tmux` 命令直接运行即可。
 
@@ -271,6 +284,8 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 > 详见 references/active-discussion-protocol.md —— 活跃讨论中的每轮协议纪律，补充任务边界协议未覆盖的轮次交互规范。
 
 ## Reference 索引
+
+> **架构终审（2026-11-22）**：hooks 方案全否决（SessionStart=伪需求：session_id 无消费场景；Stop=帧文本提取够用），CC 协作统一走脚本：start/send/wait/mode/approve 五件套 + wm CLI + output_type 协议字段。辩论硬约束=协议自声明+豁免声明制（非 hook，全协作场景统一）。决策详见 references/cc-mode-approve-scripts.md。
 
 | Reference | 内容 | 加载时机 |
 |-----------|------|---------|
@@ -297,7 +312,10 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 | [legal-article-collab-lessons](references/legal-article-collab-lessons.md) | 法律助手×CC协作起草微信公众号文章实战——辩论流程纠正、CC修正边界、条款编号双重核对、MCP弹窗监控 | 与CC协作法律类写作时 |
 | [http-file-transfer](references/http-file-transfer.md) | 从云端到 Windows 的文件传输——SCP 在 Tailscale relay 下超时时的 HTTP 服务器兜底方案 | SCP/rsync 超时但 SSH 连通时 |
 | [cc-mcp-skill-dev-pattern](references/cc-mcp-skill-dev-pattern.md) | CC 开发依赖 MCP Server 的 Skill 的完整模式——mcp.json + settings.json 双文件配置、依赖安装、连通验证、MCP vs CLI 架构选择 | CC 构建需要外部 MCP 服务的 Skill 时 |
+| [cc-project-migration](references/cc-project-migration.md) | CC CLAUDE.local.md 项目迁移工作流——4 步循环、compact 后 total_lines 修复、子目录 junction 路径规范、受控字段确认策略、6 档分档方法论、无 frontmatter 项目处理、API 密集型 has_overflow 决策 | CC 将老项目迁移到新 schema 格式、批量迁移旧 CLAUDE.local.md 文件、分档规划迁移优先级时 |
+| [cc-project-archival](references/cc-project-archival.md) | CC 项目归档工作流——5 步流程、连带 agent 审查、双版本目录归属验证、无 junction 简化、domain enum 保留规则、残留 grep 验证 | 归档已停用/被替代的项目、迁移前的僵尸清理、生态级归档（含依赖 agent）时 |
 | [github-deployment](references/github-deployment.md) | CC 从 Windows 端推送 GitHub 的阻塞点与工作流——凭证检查、无 gh CLI 时的应对、推荐推流 | CC 需要创建 GitHub 仓库或 git push 时 |
+|-----------|------|---------|
 | [batch-classification-hybrid](references/batch-classification-hybrid.md) | 大规模数据分类的"规则引擎+AI审核"混合模式——Python规则引擎批量分类+CC逐条审核不确定案例+JSON checkpoint续接+数据完整性验证 | CC 需要对数千条数据做分类/筛选/噪音分析时（微信群记录、日志、评论等） |
 | [acp_bootstrap.py](templates/acp_bootstrap.py) | ACP 快速引导脚本模板——直接复制运行，验证 SSH→ACP 全链路 | 首次部署或诊断 ACP 连通性时 |
 
@@ -326,8 +344,8 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 ```
 1. Hermes 自行完成所有网络搜索（web_search + web_extract）
 2. Hermes 将搜索结果整理为结构化文件（write_file）
-3. Hermes 通过 SCP 传输文件到 Windows（scp → C:/Users/<Windows_用户名>/<file>.txt）
-4. Hermes 发送短指令："读取 C:\Users\<Windows_用户名>\<file>.txt 并按其中任务要求执行。不要使用Web搜索。"
+3. Hermes 通过 SCP 传输文件到 Windows（scp → C:/Users/<windows-username>/<file>.txt）
+4. Hermes 发送短指令："读取 C:\Users\<windows-username>\\<file>.txt 并按其中任务要求执行。不要使用Web搜索。"
 5. CC 读取文件，分析预提供的内容，输出结论
 6. Hermes 独立审核 CC 输出 → 必要时发回质疑进行 R2 辩论
 ```
@@ -336,13 +354,13 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 
 **反面案例（2026-06-04）**：律所平台模板分析任务，CC 的 Web Search 连续返回 0 结果并进入重试循环（4次 × 0 searches），浪费 ~8 分钟 token。Hermes Escape 中断后改为预研究模式——自己搜索 5 个飞书官方模板 → 编译分析文件 → SCP → CC 在 30s 内完成分析。
 
-**两种工作流的共同规则：**
-- CC 负责所有本地操作（git clone、npx install、读取文件），Hermes 不在云端克隆
-- Hermes 负责所有网络搜索（CC 的 Web Search 工具不可靠——经常返回 0 结果）
-- ClawHub 技能通过 `npx clawhub@latest install <slug>` 安装，而非 git clone
-- CC 克隆完成后，Hermes 通过 SCP 文件或 `[HERMES:INFO]` 标记补充信息
-- 讨论使用 `[HERMES:DISCUSS]` 表达 Hermes 的主张，CC 回应辩论
-- 最终输出为 CC 本地磁盘上的方案文档，Hermes 通过 capture-pane 读取
+**Key rules for both workflows:**
+- CC does ALL local operations (git clone, npx install, file reads). Hermes NEVER clones to cloud.
+- Hermes does ALL web searches (CC's Web Search tool is unreliable — frequently returns 0 results).
+- ClawHub skills install via `npx clawhub@latest install <slug>`, NOT git clone.
+- After CC clones, Hermes sends additional info via SCP file or `[HERMES:INFO]` markers.
+- Discussion uses `[HERMES:DISCUSS]` for Hermes's proposed positions, CC debates back.
+- Final output is a plan document on CC's local disk; Hermes reads it via capture-pane.
 
 ## v2.1 协议升级（2026-06-02 辩论产出）
 
@@ -394,16 +412,38 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 9. **accept edits 阻塞**：capture-pane 看到 `⏵⏵ accept edits on` 时，paste-buffer 发送的长消息可能只收到最后一行（CC 只解析了最后一段文本）。处理优先级：
    1. `BTab`（Shift+Tab）→ 切换到 `⏸ plan mode on`，此模式下短 send-keys 正常工作。
    2. `Escape` → `Enter` → 尝试退出 accept edits 回到正常模式
-   3. **scp 文件绕过**：将长内容 scp 到 Windows（如 `/Users/<Windows_用户名>/msg.txt`），用短 send-keys 让 CC `读取 C:\Users\<Windows_用户名>\msg.txt`。绕过 paste-buffer 截断问题
+   3. **scp 文件绕过**：将长内容 scp 到 Windows（如 `/Users/<windows-username>/msg.txt`），用短 send-keys 让 CC `读取 C:\Users\<windows-username>\msg.txt`。绕过 paste-buffer 截断问题
    4. **最后手段**：`/exit` → 重新 `claude` 启动 → 再 paste-buffer。短 send-keys 不受 accept edits 影响，可用来发退出指令
 10. **传话陷阱**：与 CC 协作时，Hermes 必须用自己的判断逐条分析 CC 输出（同意/反驳/修正），给出独立结论。按主题归纳 CC 建议后转述仍被视为传话——用户期望独立思考后再汇报，而非切换格式转发。收到 CC 方案后第一反应必须是「这个方案有没有问题？」而非「CC 说了 X，你怎么看？」。详见 monitoring-debate.md §3.1。
 12. **CC 弹窗导航不可靠（数字键 ≠ 总有效，2026-06-25 修正）**：CC 的权限弹窗和 interview 表单导航并不可靠——按数字键后 `>` 光标**不一定移动到对应选项**。实测多次出现按 `2` + Enter 但 `>` 仍停在 option 1（弹窗未通过）。**正确流程**：① 按数字键或 Tab/Down 导航 ② **立即 capture-pane 验证 `>` 位置**（`>` 必须出现在目标选项行首）③ 确认移动后才按 Enter。若 `>` 未移动：补发 Down 直到 `>` 到位 → 再 Enter。**两拍法仍有效**（数字/Down 与 Enter 分开发送，间隔 ≥ 300ms），但增加了第②步验证。未生效时切勿重复按数字键+Enter（会重复排队），应 Ctrl+C 取消 → 等空闲 → 重发。
 13. **Plan mode 下 paste-buffer 不可靠**：plan mode（`⏸ plan mode on`）和 accept-edits 模式一样，paste-buffer 可能只收到消息开头几个字（多次会话实测：~600 字消息只收到片段）。**可靠替代：分段短 send-keys**，每条 <300 字符，间隔 1-2s，总共不超过 10 条。长内容写云端文件 → scp 到 Windows → 让 CC `读取 <文件路径>`。最可靠方案：多段短 send-keys 逐条发送。
+150. **CC plan mode 声称「Updated plan」但实际未修改目标内容（2026-06-28 新增）**：CC 声称更新了 plan 文件但实际遗漏了部分位置。**必须 SSH 直接读 plan 文件验证关键段落是否确实更新**。发现遗漏后用编号列表逐条指定修改内容，或通过确认面板 option 4 发送详细指令。详见 pitfalls.md #150。
 15. **过度规划**：单次 paste-buffer 指令不应超过 **3 个步骤**（步 = Hermes 指令数，非操作数）。CC 上下文窗口在处理长指令时可能丢失中间步骤细节，导致执行偏差。超过 3 步的任务必须拆分发送，每步完成后确认再发下一步。
 16. **沉默执行**：CC 执行中发现异常（工具失败、文件不存在）并输出了错误信息，但 Hermes 的 capture-pane 未及时捕获到响应，误判任务完成。轮询间隔不得超过 **30 秒**，CC 超过 **60 秒**无输出必须触发超时检查。
 18. **task_map 漏记**：每次 `/rename` 后必须**立即**更新 `claude_task_map.json`，不要等任务完成后再补——到那时上下文已被压缩，记录必然丢失。本 skill 自身在 v3.0 测试中连续漏记 5+ 条任务，是反面教材。
 20. **发送确认机制**：每次 paste-buffer 或 send-keys 后，必须确认消息完整送达。A) capture-pane -S -10 肉眼检查内容完整；B) 等待 CC 的 ACK 指纹回执（task_id + step 比对），30s 超时重发。仅依赖 paste-buffer 返回值（永远返回成功）是假象——内容可能截断但无法检测。
+
+20a. **send-keys 文本与 Enter 必须拆分为两次调用，中间隔 ≥1.5s 并验证（2026-11-21 修订，推翻旧的同一调用铁律）**：`tmux send-keys -t claude-session '文本' Enter` 同帧发送时，CC 的 Ink 界面把整段文本+Enter 当一次粘贴处理，**Enter 被吞掉**——消息卡在输入框，CC 永远收不到，需用户手动回车。2026-11-21 全天协作均触发此问题（用户发出每条消息都靠手动回车），实测拆分后 100% 送达。
+
+   **正确做法**（单工具调用内用 shell 顺序执行，既防中断又防吞键）：
+   ```bash
+   tmux send-keys -t claude-session '文本内容'; sleep 1.5; tmux send-keys -t claude-session Enter; sleep 3; tmux capture-pane -t claude-session -p -S -5
+   ```
+
+   **旧铁律为何被推翻**：旧规则（文本+Enter 同一调用）的动机是防止 Hermes turn 被打断后 Enter 不再发送。但实测证明同帧发送 Enter 本身就不可靠（Ink 粘贴处理吞键）。「配对」防了一种风险却引入了更高频的必现故障。上面的单调用串联写法兼顾两者。
+
+   **检测方法**：capture-pane 看到输入框 `>` 后有刚发送的文本残留且 CC 空闲 → Enter 被吞 → 补发 `send-keys Enter`（可连补多次，空框按 Enter 无害，用户已授权）。
 26. **假辩论 ≠ 真辩论**：收到 CC 方案后写一段独立评价再汇报用户，这不构成辩论。辩论必须是双向的——把质疑发回 CC，让 CC 回应，你再评估回应，R1→R2→R3 的轮次才算辩论。独立分析是辩论的**起点**，不是终点。独立分析后应：① 列出具体质疑 → ② 发回 CC 做 R2 质询 → ③ CC 回应后评估修正 → ④ 可能再追问 R2b/R2c → ⑤ 最终结论汇报用户。缺了 ②~④ 就是假辩论。**2026-06-02 两次触发：** 路由边界讨论和 tmux 优化讨论，均修正了 CC 的错误假设。核心教训：独立分析后若未发回 CC 质询就直接汇报用户，不管分析多深入，都是传声筒。
+
+47. **CC 启动目录选择——分析/调研任务不应直接 cd 到目标项目目录（2026-07-05 新增）**：当任务是让 CC 分析或调研某个项目/插件/仓库时，**不要**在启动 CC 前先 `cd /d "D:\目标项目目录"`。CC 在目标目录下启动会：(a) context 被 CLAUDE.local.md 或项目约定污染；(b) CC 可能误以为需要在该项目中执行修改操作。**正确做法**：在通用目录（如 `C:\Users\<windows-username>` 或工作区根目录）启动 CC，在指令中通过路径指定 CC 读取目标项目（如「读取 D:\<projects-root>\obsidian-table-data-reader 的代码并分析」）。项目操作类任务（如开发/修改）仍按 Step 2 正常 cd 到项目目录。反面案例（2026-07-05）：分析 obsidian-table-data-reader 插件时直接 cd 到插件目录启动 CC，被用户纠正「你进错目录了，不要直接进入到插件项目目录」。
+47b. **`<!-- HERMES:DISCUSS -->` 不是 tmux 协议合法标记（2026-07-05 新增）**：CC 的 tmux 协议合法标记为 `TASK / ACK / DONE / ERROR / PAUSE / DISPUTE:R1|R2|R3 / COMPLETE / RESUME / SKIP / ABORT`。`<!-- HERMES:DISCUSS -->` 是飞书群协议概念，tmux 模式下 CC 会拒绝执行并提示截断信号。发起辩论/讨论的正确格式：`[辩论R2] 质疑内容` 或 `<!-- DISPUTE:R1 -->`。注意：CC 对非 XML 标记格式的中文讨论前缀（如 `[辩论R2]`）容忍度较高，能正确理解意图并响应。
+
+47c. **分段 send-keys 发送 TASK 消息会产生假阳性截断拒绝（2026-07-05 新增）**
+47c. **分段 send-keys 发送 TASK 消息会产生假阳性截断拒绝（2026-07-05 新增）**：当 TASK 标记和任务内容通过多条 `send-keys + Enter` 分别发送时（accept edits 模式下的标准做法），CC 的协议解析器会先将第一行（TASK 标记）视为独立消息，触发截断检测（"开标记无后续内容"），输出拒绝回复。但 CC 随后会处理输入队列中的后续内容，正常执行任务。**影响**：浪费 CC token 产生不必要的拒绝分析，但不造成数据丢失或任务失败。**缓解**：可接受此代价（分段发送避免截断的价值远大于假阳性的 token 浪费），无需改变发送策略。若想避免，可将 TASK 标记和第一行内容合并为一条 send-keys（`<!-- TASK:task-1:step-1 --> 请分析...` 在同一行）。
+
+47d. **误判 CC 完成状态——"thinking more" 不等于已回复（2026-07-05 新增）**：capture-pane 看到 CC 的 emoji 状态行带有 `thinking more` 后缀（如 `✽ Moseying… (36s · ↓ 2.8k tokens · thinking more)` 或 `✢ Discombobulating… (1m 1s · thinking more)`）时，CC **仍在处理中，未完成回复**。Hermes 不得将此时 CC 的部分输出视为"已回复"并据此汇报用户。**完成信号**：emoji 行变为无 "thinking" 后缀的完成状态（如 `✻ Worked for 2m 18s`），且输出末尾有空 `>` 提示符、内容不再变化。**判别规则**：`thinking more` = 仍在思考；`Cooked for Xs` / `Worked for Xs` / `Brewed for Xs` = 已完成。反面案例（2026-07-05）：Hermes 看到 `· Moseying… (36s · thinking more)` 后直接汇报用户"CC已回复"，用户纠正「cc还在思考啊，没回复啊，你怎么会认为cc已回复」。
+
+47e. **CC `Skill()` 无法加载自定义 skill——需直接读文件路径（2026-07-06 新增）**：CC 的 `Skill('cc-obsidian-pm')` 等自定义 skill 调用会返回 `Unknown skill`。这些自定义 skill 定义在 CC 全局 CLAUDE.md 的 skill 配置中（指向本地 .md 文件），不属于 ClawHub/Hermes 内置 skill。**正确做法**：直接告诉 CC 读取 skill 文件的完整路径（如「读 D:\<projects-root>\\cc-obsidian-pm\\SKILL.md」），CC 用 Read 工具加载即可。反面案例（2026-07-06）：Hermes 发「请根据 cc-obsidian-pm 技能更新…」，CC 尝试 Skill() 失败，Hermes 需补发路径提示。
 
 27. **CC interview 表单禁止裸转发（v3.16 新增）**：CC plan mode 的 interview 表单（`Enter to select`、`↑/↓ to navigate`）列出选项时，**绝对禁止**把选项列表直接转发给用户问"你看选哪个"。这是最赤裸的传声筒——用户期望的是 Hermes 先做独立分析，判断每个选项的优劣，给出推荐理由，然后才让用户拍板。**2026-06-03 触发**：CC 询问 DOM 选择器方案（选项 1/2/3），Hermes 转发选项列表问用户，用户立即指出「不要当传话筒」。正确做法：独立分析 → 指出选项的利弊/可行性 → 给出明确推荐 → 附简要理由 → 然后让用户确认。如果某个选项涉及技术事实不确定（如需要 CC 自查），先把质疑发回 CC 澄清，澄清后再汇报用户。
 27. **Hermes 侧就近处理违规**：就近处理铁律是双向的。CC 提议「我帮你写一份完整的 XX 文件，可以直接粘贴到配置里」→ Hermes 不应接受。云端文件始终由 Hermes 自己写入，CC 只产出内容建议（对话中讨论即可）。处理方式：CC 若越界提议写云端文件 → 立即 C-c 取消 → 明确告诉 CC「这个文件在云端，应该 Hermes 来写，你产出规则内容到对话中即可」。
@@ -411,6 +451,8 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 33. **DISCUSS 优先于自动建议（用户强制规则）**：CC 在 `⏵⏵ accept edits on` 模式下生成的自动建议（如 `> 开始写 P1 代码`、`> 先验证...`），CC 会**优先执行自动建议**而忽略排队的 `[HERMES:DISCUSS]` 消息。**处理：capture-pane 看到 CC 执行工具调用（● Bash/Read 等），同时有 DISCUSS 排队（`Press up to edit queued messages`）→ 立即 `C-c` 打断。DISCUSS 已在队列中，打断后 CC 会自动处理下一条消息即 DISCUSS，无需重发。** 不打断则 CC 在错误方向浪费数分钟 token。用户明确要求（2026-06-02）：「以后遇到这种情况就先打断CC，让它先处理讨论，不然执行方向会有问题」。
 36. **空闲判断铁律（v3.8 新增）**：CC pane 有三个独立区域——①输入框上方（emoji 标记 ✶/✽/✻/✢/· 等，有=thinking，无=空闲）；②输入框（`>` 提示符）；③底部状态栏（左侧=UI 模式，右侧=X% until auto-compact）。**空闲只看区域①，不看区域③。** accept edits、plan mode、normal mode 只是 UI 模式，只要有 emoji 标记就不是空闲，没有就是空闲。accept edits 模式下的限制是发送方式（用短 send-keys 不用 paste-buffer），不是不可发送。不要混淆"发送方式受限"和"不可发送"。
 42. **accept edits 模式可能完全阻塞所有 send-keys（v3.10 新增→v3.42 修正→v3.43 新增预防）**：实测发现 accept edits 模式下不仅是 paste-buffer 被截断，**所有 send-keys 都可能被 CC 吞掉**——包括 BTab、Escape、C-c、/exit、普通短消息。pane 看起来有 `>` 提示符处于空闲，实际完全不响应。
+
+   **⚠️ CC context 满时的恢复策略（2026-06-29 新增→2026-06-30 补完）**：当 CC 反复报 `API Error: The model has reached its context window limit` 时：① 先尝试 tmux 发 `/compact` + Enter ② 等待观察是否处理（compact 成功后 capture-pane 会看到 `Compacted` + 重新读取 rules 文件）③ 如果 compact 也报同样错误，可能是 accept edits 模式吞消息——此时 `Escape + BTab` 切到 plan mode → `Enter` 提交 `/compact` ④ **compact 完成后 capture-pane 确认 `Compacted` → 必须 BTab 切回 accept edits（看底部状态栏确认，不要凭记忆数次数）→ 发送「继续」让 CC 恢复工作**（CC compact 后不会自动继续！）⑤ **切勿用 `--resume` 重启旧 session**——会加载同样的膨胀 context 再次撞 limit。BTab 循环顺序：normal → auto → plan → accept edits → normal（4 档）。注意：tmux 发 /compact 和手动发没有本质区别，失败的根因更多是 accept edits 模式吞消息而非发送通道。
 
    **⚠️ 区分两种行为模式（2026-06-10 新增）**：
    - **延迟排队**（更常见）：send-keys 不是被吞，而是排队延迟送达——可能延迟 30s~数分钟后才出现在输入框中。判别信号：CC 当前正 busy（有 emoji/thinking 标记）时发的 send-keys 会在 CC 空闲后逐条出现。**处理**：不要重复发送同一指令（会导致重复排队），耐心等待 CC 完成当前操作后再检查输入框。
@@ -421,7 +463,7 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 > 详见 references/active-discussion-protocol.md —— 活跃讨论中的每轮协议纪律，补充任务边界协议未覆盖的轮次交互规范。
 
 
-> 📋 以上为高频核心条目。完整 138 条 pitfalls（按原编号保留）详见 [references/pitfalls.md](references/pitfalls.md)。
+> 📋 以上为高频核心条目。完整 150 条 pitfalls（按原编号保留）详见 [references/pitfalls.md](references/pitfalls.md)。
 
 ### 双向心跳协议（v2.1）
 
@@ -498,8 +540,7 @@ Hermes(云端) ──SSH pipe──→ claude-agent-acp (Windows) ──→ 智�
 
 - [ ] **操作一致性**：CC 结论与 capture-pane 观察到的操作记录是否一致（文件数、修改行数、Edit 次数）
 - [ ] **独立核实**：是否独立核实了关键断言（文件存在、测试通过、git 状态），而非直接转发 CC 报告
-- [ ] **Paste 验证**：send-keys/paste-buffer 发送后是否通过 capture-pane 确认消息内容完整未被截断
-- [ ] **ACK 确认**：是否收到 CC 的 ACK 指纹回执并比对 task_id+step 一致（30s 超时重发）
+- [ ] **送达验证**：cc-send.sh 返回 SEND_OK（内置清框校验）+ cc-wait.sh 收到 ACK/DONE 指纹比对 task_id+step 一致（脚本超时自动报 WAIT_TIMEOUT，不再依赖固定 sleep）
 - [ ] **状态摘要**：是否已在指令末尾附加 `[state: task_id step done next ctx]` 状态行
 - [ ] **步骤限制**：单次指令步骤数是否 ≤ 3（步=指令数，非操作数）
 - [ ] **偏好隔离**：指令中是否包含了仅针对 Hermes 的用户偏好（如「全部做完再汇报」）？是 → 不得传达给 CC/芭迪，用户偏好按 agent 隔离
@@ -510,4 +551,5 @@ Hermes(云端) ──SSH pipe──→ claude-agent-acp (Windows) ──→ 智�
 - [ ] **空闲确认**：CC 输入框上方是否无 emoji 标记（✶/✽/✻/✢/· 等）？是 → 空闲可接受新任务
 - [ ] **COMPLETE**：task 所有步骤完成后是否发送了 COMPLETE 标记
 - [ ] **计划合规**：CC 输出的内容是否与约定的 INTEGRATION_PLAN（或等同文档）一致？有无引入已排除的功能、虚构的 provider、声称不存在的特性？发现偏差先辩论修正再继续
-- [ ] **自我校验**：任务完成后做一次反向验证（capture-pane + 修改点 read），CC 结论与 Hermes 独立观察不一致 → 标注「需人工确认」
+- [ ] **CC 声称-实际核查（强制，2026-11-21 v4.1）**：凡 CC 报告「已写入/已修改文件」，Hermes 必须拉回文件（scp）做关键标记 grep/diff 验证后才能采信，不得凭 DONE 摘要汇报。2026-11-21 实测两次「声称完成但实际只改部分」（修订计划只落实 1/4 项质疑；协议修订后仍有旧表述残留）。发现未落实 → 引用具体缺失项追问，禁止笼统重发原任务
+- [ ] **辩论闭环自检（强制，2026-11-22）**：本 turn 与 CC 有交互且 CC 输出为方案类（output_type: analysis）→ 汇报用户前自答：我至少提出过一个可证伪的具体质疑并发回 CC 了吗？没有 → 补辩论或带豁免声明（见「辩论豁免声明制」）

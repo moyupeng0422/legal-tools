@@ -17,7 +17,7 @@ import subprocess, json, threading, time, sys, os
 # ============ 配置 ============
 SSH_TARGET = "local-win"
 API_KEY = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ANTHROPIC_API_KEY", "")
-BASE_URL = "https://<API_服务商域名>/api/anthropic"
+BASE_URL = "<api-endpoint>"
 MODEL = "glm-5-turbo"
 TIMEOUT = {"init": 15, "session": 20, "prompt": 90, "cleanup": 5}
 

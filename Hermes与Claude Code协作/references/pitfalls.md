@@ -282,7 +282,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #54a. Playwright/Edge 路径避免非 ASCII 字符（v3.19 新增） _（同号变体之一）_
 
-54. **Playwright/Edge 路径避免非 ASCII 字符（v3.19 新增）**：Windows 上 Playwright 使用 Edge 时，`launch_persistent_context()` 的 `user_data_dir` 参数若包含中文路径，Edge 会以 exitCode=21 启动失败（无明确错误提示）。根因是 Chromium 系浏览器对非 ASCII 路径的兼容问题。**修法**：将 browser_data 目录放到纯 ASCII 路径下，如 `%TEMP%/login-helper-browser_data`。反面案例（2026-06-03）：login-helper 的 `BROWSER_DATA_DIR` 原指向含中文的 `D:\claude vscode\法律相关skill自研仓库\...`，Edge 反复 exitCode=21 无法启动，改为 `%TEMP%` 子目录后立即正常。详见 `references/edge-troubleshooting.md`。
+54. **Playwright/Edge 路径避免非 ASCII 字符（v3.19 新增）**：Windows 上 Playwright 使用 Edge 时，`launch_persistent_context()` 的 `user_data_dir` 参数若包含中文路径，Edge 会以 exitCode=21 启动失败（无明确错误提示）。根因是 Chromium 系浏览器对非 ASCII 路径的兼容问题。**修法**：将 browser_data 目录放到纯 ASCII 路径下，如 `%TEMP%/login-helper-browser_data`。反面案例（2026-06-03）：login-helper 的 `BROWSER_DATA_DIR` 原指向含中文的 `D:\<projects-root>\法律相关skill自研仓库\...`，Edge 反复 exitCode=21 无法启动，改为 `%TEMP%` 子目录后立即正常。详见 `references/edge-troubleshooting.md`。
 
 ### #55. SSH → Windows headed 浏览器不弹窗：是环境限制，不是代码 bug（v3.20 新增）
 
@@ -306,7 +306,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #61. Skill 创建必须用独立项目文件夹（v3.24 新增）
 
-61. **Skill 创建必须用独立项目文件夹（v3.24 新增）**：CC 创建或重构 Hermes skill 时，**绝对禁止**直接在克隆的仓库目录（如 health-research/）中写 SKILL.md。克隆仓库是原始代码源，应保持不动。正确做法：在 `D:\claude vscode\` 下新建独立项目文件夹（如 `health-management-skill/`），其中：
+61. **Skill 创建必须用独立项目文件夹（v3.24 新增）**：CC 创建或重构 Hermes skill 时，**绝对禁止**直接在克隆的仓库目录（如 health-research/）中写 SKILL.md。克隆仓库是原始代码源，应保持不动。正确做法：在 `D:\<projects-root>\` 下新建独立项目文件夹（如 `health-management-skill/`），其中：
    ```
    health-management-skill/
    ├── SKILL.md              ← 聚合 skill（入口）
@@ -339,7 +339,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
 ### #68b. 从 Windows 到云端的批量文件传输：tar-over-SSH 优于 SCP（v3.28 新增） _（同号变体之一）_
 
-68. **从 Windows 到云端的批量文件传输：tar-over-SSH 优于 SCP（v3.28 新增）**：当需要从 Windows 本地（CC 侧）将整个 skill 项目目录（含空格路径、大量小文件）传输到云端时，`scp -r` 在以下场景失败：(a) Windows 路径含空格导致 SCP 无法解析通配符 `/*`；(b) SCP 默认要求目标目录已精确存在，中途创建子目录失败则整批中断。\\n\\n   **可靠替代方案——tar over SSH pipe：**\\n   ```bash\\n   # 云端执行：拉取 Windows 整个目录\\n   cd <cloud_dest_dir>\\n   ssh -p <port> user@windows \\\"tar -czf - -C \\\\\\\"D:/path/with spaces/target\\\\\\\" .\\\" | tar -xzf -\\n   ```\\n   \\n   **原理**：`tar -czf - -C <src> .` 在 Windows 端打包为 tar.gz 流，通过 SSH stdout pipe 直接送到云端 `tar -xzf -` 解压。不需要中间文件，不需要处理路径空格问题，一条命令完成。\\n   \\n   **注意事项**：\\n   - `-C <src>` 指定源目录，`.` 打包所有内容（不含容器目录本身）\\n   - Windows 路径用双引号包裹，内部反斜杠转义为 `\\\\\\\\` 或直接用正斜杠 `/`\\n   - 先确认目标目录已存在（`mkdir -p`）\\n   - 此方案也适用于 rsync 不可用时的替代\\n   \\n   反面案例（2026-06-03）：先后尝试 `scp -r \\\"D:/claude vscode/...\\\"` 和 `scp source/*` 均因路径空格和目标目录变化而中断，改用 tar-over-SSH 一次传输 68 个文件成功。\\n\\n68. **HTTP server 作为云→Windows 文件传输的兜底方案（v3.35 新增）**：当 SCP/SSH-pipe 向 Windows 传输文件在 Tailscale relay 下超时时，启动 Python HTTP server 是可靠替代云端方案。详见 references/http-file-transfer.md。
+68. **从 Windows 到云端的批量文件传输：tar-over-SSH 优于 SCP（v3.28 新增）**：当需要从 Windows 本地（CC 侧）将整个 skill 项目目录（含空格路径、大量小文件）传输到云端时，`scp -r` 在以下场景失败：(a) Windows 路径含空格导致 SCP 无法解析通配符 `/*`；(b) SCP 默认要求目标目录已精确存在，中途创建子目录失败则整批中断。\\n\\n   **可靠替代方案——tar over SSH pipe：**\\n   ```bash\\n   # 云端执行：拉取 Windows 整个目录\\n   cd <cloud_dest_dir>\\n   ssh -p <port> user@windows \\\"tar -czf - -C \\\\\\\"D:/path/with spaces/target\\\\\\\" .\\\" | tar -xzf -\\n   ```\\n   \\n   **原理**：`tar -czf - -C <src> .` 在 Windows 端打包为 tar.gz 流，通过 SSH stdout pipe 直接送到云端 `tar -xzf -` 解压。不需要中间文件，不需要处理路径空格问题，一条命令完成。\\n   \\n   **注意事项**：\\n   - `-C <src>` 指定源目录，`.` 打包所有内容（不含容器目录本身）\\n   - Windows 路径用双引号包裹，内部反斜杠转义为 `\\\\\\\\` 或直接用正斜杠 `/`\\n   - 先确认目标目录已存在（`mkdir -p`）\\n   - 此方案也适用于 rsync 不可用时的替代\\n   \\n   反面案例（2026-06-03）：先后尝试 `scp -r \\\"D:/<projects-root>/...\\\"` 和 `scp source/*` 均因路径空格和目标目录变化而中断，改用 tar-over-SSH 一次传输 68 个文件成功。\\n\\n68. **HTTP server 作为云→Windows 文件传输的兜底方案（v3.35 新增）**：当 SCP/SSH-pipe 向 Windows 传输文件在 Tailscale relay 下超时时，启动 Python HTTP server 是可靠替代云端方案。详见 references/http-file-transfer.md。
 
 ### #69. CC 服务器不可达时的处理协议（v3.33 新增） _（同号变体之一）_
 
@@ -392,9 +392,9 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
 
    ```
    1. Hermes 写 review-findings.md（逐条列出：问题位置行号、根因、修复方案、可选方案）
-   2. SCP 到 Windows：`scp /tmp/review-findings.md <Windows_用户名>@local-win:"D:/claude vscode/review-findings.md"`
+   2. SCP 到 Windows：`scp /tmp/review-findings.md <Windows_用户名>@local-win:"D:/<projects-root>/review-findings.md"`
    3. 在 Windows 启动 CC print mode 执行修复（不需要 tmux）：
-      `ssh <Windows_用户名>@local-win "cd /d \"D:/claude vscode/target-dir\" && claude -p --permission-mode bypassPermissions --dangerously-skip-permissions \"Read D:\\claude vscode\\review-findings.md and fix all issues.\""`
+      `ssh <Windows_用户名>@local-win "cd /d \"D:/<projects-root>/target-dir\" && claude -p --permission-mode bypassPermissions --dangerously-skip-permissions \"Read D:\\<projects-root>\\review-findings.md and fix all issues.\""`
       关键参数：`-p`（非交互）、`--permission-mode bypassPermissions`（自动放行）
    4. Windows 端打包修改结果 → SCP 回云端：
       ```
@@ -415,7 +415,7 @@ _（v3.43 新增预防段落：见相关 pitfall 的预防措施）_
       - 删除旧 skill（被替代时）：`skill_manage(action='delete', name='old-skill', absorbed_into='new-skill')`
 
    Windows 路径关键技巧：
-   - `scp` 用正斜杠：`"D:/claude vscode/file.txt"` ✅
+   - `scp` 用正斜杠：`"D:/<projects-root>/file.txt"` ✅
    - `ssh cd` 用 `cd /d "D:\dir"`（/d 切换驱动器）
    - `powershell Compress-Archive` 用反斜杠
 
@@ -538,7 +538,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 89. **CC 启动序列铁律——cd→启动→激活→resume（2026-06-08 新增）**：启动 CC 的完整序列必须严格按以下顺序，不可跳步或混淆：
    1. `ssh local-win`（确认连接）
-   2. `cd /d "D:\claude vscode"`（进入项目目录——**不是用户 home 目录**）
+   2. `cd /d "D:\<projects-root>"`（进入项目目录——**不是用户 home 目录**）
    3. `claude --model glm-5.2`（正常模式，**禁止 `--dangerously-skip-permissions`**，见陷阱 #2）
    4. `<!-- HERMES-ACTIVATE -->`（激活协作模式）
    5. `/rename Hermes:<任务名>`（命名对话，带前缀）
@@ -770,7 +770,7 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
 
 ### #127. Hermes 发送指令前必须提供完整背景文件路径（2026-06-22 新增）
 
-127. **Hermes 发送指令前必须提供完整背景文件路径（2026-06-22 新增）**：当通过飞书群向 CC 派发任务或讨论时，**指令中必须包含 CC 需要读取的文件路径**（本地 Windows 路径，如 `D:\\claude vscode\\...`）。CC 没有 Hermes 的云端上下文，不能假设 CC"天然知道"背景。如果任务涉及某个 Skill 或项目，必须在第一条消息中就写上 `请先读取技能：D:\\...\\SKILL.md`。反面案例（2026-06-22）：发知识库流程讨论时没带技能位置，CC 在无背景下做了无效分析，用户指出「回复是无意义的」。：当用户要求「让 CC 用 skill-creator」时，不能简单地发「用 /skill-creator」然后等 CC 自己决定做什么。CC 可能自动启动 Explore agent 搜索本地文件，而非立即调用 `/skill-creator`。正确流程：(a) 在指令中明确写「先 Read 现有的 SKILL.md 和相关 references 文件了解现状，然后直接调用 /skill-creator 来创建/更新」；(b) 如果 CC 已开始 Explore，立即 C-c 打断，重新发包含「直接调用 /skill-creator」的指令；(c) CC 加载 /skill-creator 后进入 interview 流程，用数字键+两拍法选择选项。**反面案例（2026-06-18）**：用户说「让cc加载它的skil creator技能」，Hermes 发消息后 CC 启动 Explore 搜索文件，跑了 1 分钟才被 C-c 打断重定向。
+127. **Hermes 发送指令前必须提供完整背景文件路径（2026-06-22 新增）**：当通过飞书群向 CC 派发任务或讨论时，**指令中必须包含 CC 需要读取的文件路径**（本地 Windows 路径，如 `D:\\<projects-root>\\...`）。CC 没有 Hermes 的云端上下文，不能假设 CC"天然知道"背景。如果任务涉及某个 Skill 或项目，必须在第一条消息中就写上 `请先读取技能：D:\\...\\SKILL.md`。反面案例（2026-06-22）：发知识库流程讨论时没带技能位置，CC 在无背景下做了无效分析，用户指出「回复是无意义的」。：当用户要求「让 CC 用 skill-creator」时，不能简单地发「用 /skill-creator」然后等 CC 自己决定做什么。CC 可能自动启动 Explore agent 搜索本地文件，而非立即调用 `/skill-creator`。正确流程：(a) 在指令中明确写「先 Read 现有的 SKILL.md 和相关 references 文件了解现状，然后直接调用 /skill-creator 来创建/更新」；(b) 如果 CC 已开始 Explore，立即 C-c 打断，重新发包含「直接调用 /skill-creator」的指令；(c) CC 加载 /skill-creator 后进入 interview 流程，用数字键+两拍法选择选项。**反面案例（2026-06-18）**：用户说「让cc加载它的skil creator技能」，Hermes 发消息后 CC 启动 Explore 搜索文件，跑了 1 分钟才被 C-c 打断重定向。
 
 ### #128. Plan mode 中 interview 选项编号绑定到 checkbox 状态（2026-06-18 新增）
 
@@ -823,3 +823,63 @@ Hermes 发指令 → CC 回 ACK 指纹（task_id+step） → CC 执行 → CC �
    - **用户直接在 CC 输入框打字时继续监控**——不要因为看到用户在编辑输入就停止轮询。
 
    详见 `references/monitoring-debate.md` §10。
+---
+
+## v4.x 新增条目（2026-11 批次）
+
+以下条目为 v4.1.0 相对 v3.41 的新增/重写条目，编号顺延或按原编号补入。
+
+### #150. CC plan mode 声称「Updated plan」但实际未修改目标内容（2026-06-28）
+
+**CC plan mode 声称「Updated plan」但实际未修改目标内容（2026-06-28 新增）**：CC 声称更新了 plan 文件但实际遗漏了部分位置。**必须 SSH 直接读 plan 文件验证关键段落是否确实更新**。发现遗漏后用编号列表逐条指定修改内容，或通过确认面板 option 4 发送详细指令。详见 pitfalls.md #150。
+
+### #157. CC 无法通过 Skill() 加载本地自定义 skill——需直接读文件（2026-07-06 新增）
+
+157. **CC 无法通过 Skill() 加载本地自定义 skill——需直接读文件（2026-07-06 新增）**：CC 的 `Skill()` 命令只能加载 Claude Code 内置 skill 系统（`~/.claude/commands/` 或 ClawHub 安装）中注册的 skill。CC 的**本地自定义 skill**（定义在 CLAUDE.md 中引用的 `.md` 文件，如 `D:\<projects-root>\cc-obsidian-pm\SKILL.md`）不在 Skill() 的可用列表中，调用会报 `Error: Unknown skill: <name>`。
+
+   **判别信号**：CC 尝试 `Skill(cc-obsidian-pm)` 但返回 `Error: Unknown skill`，同时在 available skills 列表中确实找不到该名称。
+
+   **正确处理**：
+   1. 告诉 CC 该 skill 是本地自定义文件，不在 Skill() 系统中
+   2. 提供 skill 文件的磁盘路径（如 `D:\<projects-root>\cc-obsidian-pm\SKILL.md`）
+   3. CC 直接用 Read 工具读取该文件，按其中的规范执行
+
+   **预防**：Hermes 在 TASK 指令中要求 CC 按某个自定义 skill 规范操作时，不要只说"按 cc-obsidian-pm skill"，应同时提供文件路径。或者将 skill 内容直接作为指令附件通过 SCP 传送。
+
+   **实测案例（2026-07-06）**：要求 CC 按 cc-obsidian-pm skill 更新项目文档，CC 尝试 Skill() 加载失败。Hermes 补充说明后 CC 直接读 SKILL.md 文件，按规范完成更新（lint full OK）。
+
+
+---
+
+## v4.x 新增条目（2026-11 批次）
+
+以下条目为 v4.1.0 相对 v3.41 新增/重写。
+
+### #20a. send-keys 文本与 Enter 必须拆分为两次调用，中间隔 ≥1.5s 并验证（2026-11-21 修订，推翻旧的同一调用铁律）
+
+send-keys 文本与 Enter 必须拆分为两次调用，中间隔 ≥1.5s 并验证（2026-11-21 修订，推翻旧的同一调用铁律）**：`tmux send-keys -t claude-session '文本' Enter` 同帧发送时，CC 的 Ink 界面把整段文本+Enter 当一次粘贴处理，**Enter 被吞掉**——消息卡在输入框，CC 永远收不到，需用户手动回车。2026-11-21 全天协作均触发此问题（用户发出每条消息都靠手动回车），实测拆分后 100% 送达。
+
+   **正确做法**（单工具调用内用 shell 顺序执行，既防中断又防吞键）：
+   ```bash
+   tmux send-keys -t claude-session '文本内容'; sleep 1.5; tmux send-keys -t claude-session Enter; sleep 3; tmux capture-pane -t claude-session -p -S -5
+   ```
+
+   **旧铁律为何被推翻**：旧规则（文本+Enter 同一调用）的动机是防止 Hermes turn 被打断后 Enter 不再发送。但实测证明同帧发送 Enter 本身就不可靠（Ink 粘贴处理吞键）。「配对」防了一种风险却引入了更高频的必现故障。上面的单调用串联写法兼顾两者。
+
+   **检测方法**：capture-pane 看到输入框 `>` 后有刚发送的文本残留且 CC 空闲 → Enter 被吞 → 补发 `send-keys Enter`（可连补多次，空框按 Enter 无害，用户已授权）。
+
+### #47b. `<!-- HERMES:DISCUSS -->` 不是 tmux 协议合法标记（2026-07-05 新增）
+
+`<!-- HERMES:DISCUSS -->` 不是 tmux 协议合法标记（2026-07-05 新增）**：CC 的 tmux 协议合法标记为 `TASK / ACK / DONE / ERROR / PAUSE / DISPUTE:R1|R2|R3 / COMPLETE / RESUME / SKIP / ABORT`。`<!-- HERMES:DISCUSS -->` 是飞书群协议概念，tmux 模式下 CC 会拒绝执行并提示截断信号。发起辩论/讨论的正确格式：`[辩论R2] 质疑内容` 或 `<!-- DISPUTE:R1 -->`。注意：CC 对非 XML 标记格式的中文讨论前缀（如 `[辩论R2]`）容忍度较高，能正确理解意图并响应。
+
+### #47c. 分段 send-keys 发送 TASK 消息会产生假阳性截断拒绝（2026-07-05 新增）
+
+分段 send-keys 发送 TASK 消息会产生假阳性截断拒绝（2026-07-05 新增）**
+
+### #47d. 误判 CC 完成状态——"thinking more" 不等于已回复（2026-07-05 新增）
+
+误判 CC 完成状态——"thinking more" 不等于已回复（2026-07-05 新增）**：capture-pane 看到 CC 的 emoji 状态行带有 `thinking more` 后缀（如 `✽ Moseying… (36s · ↓ 2.8k tokens · thinking more)` 或 `✢ Discombobulating… (1m 1s · thinking more)`）时，CC **仍在处理中，未完成回复**。Hermes 不得将此时 CC 的部分输出视为"已回复"并据此汇报用户。**完成信号**：emoji 行变为无 "thinking" 后缀的完成状态（如 `✻ Worked for 2m 18s`），且输出末尾有空 `>` 提示符、内容不再变化。**判别规则**：`thinking more` = 仍在思考；`Cooked for Xs` / `Worked for Xs` / `Brewed for Xs` = 已完成。反面案例（2026-07-05）：Hermes 看到 `· Moseying… (36s · thinking more)` 后直接汇报用户"CC已回复"，用户纠正「cc还在思考啊，没回复啊，你怎么会认为cc已回复」。
+
+### #47e. CC `Skill()` 无法加载自定义 skill——需直接读文件路径（2026-07-06 新增）
+
+CC `Skill()` 无法加载自定义 skill——需直接读文件路径（2026-07-06 新增）**：CC 的 `Skill('cc-obsidian-pm')` 等自定义 skill 调用会返回 `Unknown skill`。这些自定义 skill 定义在 CC 全局 CLAUDE.md 的 skill 配置中（指向本地 .md 文件），不属于 ClawHub/Hermes 内置 skill。**正确做法**：直接告诉 CC 读取 skill 文件的完整路径（如「读 D:\\<projects-root>\\cc-obsidian-pm\\SKILL.md」），CC 用 Read 工具加载即可。反面案例（2026-07-06）：Hermes 发「请根据 cc-obsidian-pm 技能更新…」，CC 尝试 Skill() 失败，Hermes 需补发路径提示。

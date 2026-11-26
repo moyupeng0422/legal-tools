@@ -48,7 +48,7 @@ tmux send-keys -t claude-session 'ssh local-win' Enter
 sleep 5
 # 验证是否进入 Windows
 tmux capture-pane -t claude-session -p | tail -1
-# 应看到: huawei@LAPTOP-OPEVKB7J ...>
+# 应看到: <windows-username>@<windows-hostname> ...>
 ```
 
 ### Step 3：恢复 CC

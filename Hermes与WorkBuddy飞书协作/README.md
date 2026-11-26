@@ -1,132 +1,81 @@
-# Hermes × WorkBuddy 飞书协作 Skill
+# Hermes与WorkBuddy飞书协作
 
-云端 Hermes（Ubuntu）通过飞书群聊 + SSH 双通道指挥本地 WorkBuddy（Windows）执行任务——发任务、写文件、辩论、审阅，全程用户无需传话。
+> **版本 v2.1.0**（协议 v1.8「零机械架构」）| 云端 Hermes Agent 通过飞书群聊编排 WorkBuddy（芭迪）执行任务的多 Agent 协作规范
 
-## 功能特点
+## 这是什么
 
-- **双通道通信**：飞书 REST API（任务下发/回复接收）+ SSH（文件直读/状态监控）
-- **结构化标记**：`[任务]`/`[讨论]`/`[辩论]`/`[协议调整]` 四种消息前缀
-- **多轮辩论**：R1→R2→R3 三轮独立校验，确保结论质量
-- **交付物分离**：沟通记录（conv）与成品交付（out）独立管理，v3.0 架构
-- **状态灯监控**：status.json 实时追踪任务阶段，SSH 轮询零延迟感知
-- **斜杠命令**：`/status`、`/stop`、`/priority` 支持用户直接操作
+Hermes（云端）→ 飞书群卡片 → WorkBuddy（本地 Windows）的**单向下发 + conv 文件回传**协作协议。核心形态：
 
-## 使用方法
+- **卡片下发任务**（agent-send.sh，串行闸门保证同任务不重发）
+- **conv 文件承载内容**（芭迪把工作过程与结论写入 conv 文件，SSH 推回云端；卡片只做"醒了"的信号）
+- **睡眠等待主链路**（badi-wait.py，30s 群轮询 + 卡片唤醒）
 
-### Hermes 端（云端 Ubuntu）
+## 与旧 v3 架构的差异（为什么重写）
 
-将 `hermes/` 目录下文件复制到 Hermes 的 CodeBuddy 配置目录：
+旧 v3 架构 = watch/audit/A2A 三件套（文件监听 + 审计 + Agent-to-Agent 直连）。v1.8 经八轮辩论（R1→R8，全记录见 `references/a2a-redesign-2026-11-23.md`）裁定全面退役：
 
-```
-cp hermes/SKILL.md {HERMES_PROJECT_DIR}/.codebuddy/skills/workbuddy-collab/SKILL.md
-cp hermes/references/* {HERMES_PROJECT_DIR}/.codebuddy/skills/workbuddy-collab/references/
-cp hermes/scripts/* {HERMES_PROJECT_DIR}/.codebuddy/skills/workbuddy-collab/scripts/
-```
+| 旧机制 | 问题 | v1.8 替代 |
+|--------|------|----------|
+| watch 文件监听（board_watch/badi_watch 等 7 个脚本） | 投递层故障（飞书 bot 间消息不投递），watch 无岗可守 | **sleep 等待主链路**：`badi-wait.py` 同 turn 阻塞轮询群消息 + 卡片唤醒 |
+| A2A POST 直连 | audit 源死，砍除 | 群消息 API 复核 |
+| 卡片即内容 | 卡片被 8000 字符拆分、内容不可信 | **conv 内容权威**：conv 文件是唯一事实源，卡片只是唤醒信号 |
+| 看板自动派生状态 | rebuild 重派生已收口任务 | **看板状态权威**：collab_board.py 显式 update + rebuild |
+| @ 对方 Bot 兜底 | bot 间消息不投递的平台实证 | **禁 @ 铁律**：跨 Bot 协作一律走文件落盘 |
 
-将 `.env.template` 复制为 `.env` 并填入实际值（`.env` 仅在 Hermes 侧使用）。
+### 核心铁律
 
-### WorkBuddy 端（本地 Windows）
+1. **单卡片铁律**：一个任务一张卡片，内容全在 conv，卡片不承载实质信息
+2. **禁 @ 铁律**：飞书平台 bot 间 @ 消息不投递（实证），跨 Bot 通道设计先判死互@、走文件
+3. **醒后原子序列**：睡醒后 `读 conv → 校验 → 验收判断（LLM 闸门，不可跳过）→ 看板核销`，跳过验收直接闭环 = 最大漏洞
+4. **pending-op 权限卡分型**：纯卡片无文本 = 框架权限审批挂起（非 LLM 产出），配合芭迪侧 `<!-- pending-op -->` 哨兵行辨析，不误判为纪律违规
 
-将 `workbuddy/` 目录下文件复制到 WorkBuddy 项目目录：
-
-```
-# 协作规则（WorkBuddy 启动自动加载）
-cp workbuddy/MEMORY.md {PROJECT_DIR}/.workbuddy/memory/MEMORY.md
-
-# 斜杠命令
-cp workbuddy/commands/*.md {PROJECT_DIR}/.codebuddy/commands/hermes/
-
-# 协作工作区
-cp -r workbuddy/hermes_collab/* {PROJECT_DIR}/hermes_collab/
-```
-
-## ⚠️ 使用前必读
-
-本规范中的路径、ID 等均为占位符，使用前**必须替换为你自己的实际配置**：
-
-| 占位符 | 替换为 | 示例 |
-|--------|--------|------|
-| `{PROJECT_DIR}` | WorkBuddy 项目根目录 | `D:\workbuddy\MyProject\` |
-| `{SSH_ALIAS}` | Hermes 连接 WorkBuddy 的 SSH 别名 | `local-win` |
-| `{FEISHU_CHAT_ID}` | 飞书群聊 ID | `oc_xxxxxxxxxxxxxxxx` |
-| `{WORKBUDDY_OPEN_ID}` | WorkBuddy 在飞书群中的 open_id | `ou_xxxxxxxxxxxxxxxx` |
-| `{WORKBUDDY_HERMES_OPEN_ID}` | Hermes 视角的 WorkBuddy open_id | `ou_xxxxxxxxxxxxxxxx` |
-| `{FEISHU_APP_ID}` | 飞书应用 AppID | 飞书开放平台 > 应用凭证 |
-| `{FEISHU_APP_SECRET}` | 飞书应用 AppSecret | 飞书开放平台 > 应用凭证 |
-| `{HERMES_PROJECT_DIR}` | Hermes 项目根目录 | `/home/user/hermes-project/` |
-
-**占位符分布：**
-
-| 文件 | 包含的占位符 |
-|------|-------------|
-| `workbuddy/MEMORY.md` | `{PROJECT_DIR}`, `{SSH_ALIAS}` |
-| `workbuddy/commands/*.md` | `{PROJECT_DIR}` |
-| `workbuddy/hermes_collab/PROTOCOL.md` | `{PROJECT_DIR}`, `{SSH_ALIAS}` |
-| `hermes/SKILL.md` | `{FEISHU_CHAT_ID}`, `{WORKBUDDY_OPEN_ID}`, `{WORKBUDDY_HERMES_OPEN_ID}`, `{SSH_ALIAS}`, `{PROJECT_DIR}` |
-| `.env` | `{FEISHU_APP_ID}`, `{FEISHU_APP_SECRET}`, `{FEISHU_CHAT_ID}`, `{WORKBUDDY_OPEN_ID}`, `{WORKBUDDY_HERMES_OPEN_ID}`, `{SSH_ALIAS}` |
-
-## 架构概览
+## 文件结构
 
 ```
-用户 ←→ Hermes(云端Ubuntu)
-         │        │
-         │ 飞书群聊│ ← REST API 发消息 / ListMessage 轮询回复
-         │   ↕    │
-         └────────┘
-                  │
-              SSH 直读
-                  │
-         WorkBuddy(本地Windows)
-                  │
-              飞书群聊 ← WorkBuddy GUI 收发消息 + 写文件
+Hermes与WorkBuddy飞书协作/
+├── SKILL.md                  # 主规范（v2.1.0，131 行，v1.8 零机械架构）
+├── references/               # 15 篇
+│   ├── protocol-v1.8.md      # 完整协议（改协议必读）
+│   ├── badi-instructions-v18.md      # 芭迪指令唯一权威版
+│   ├── assets-inventory.md           # 脚本资产对照清单
+│   ├── credentials.md                # 凭据占位符版（所有 ID 均为占位符，使用时替换）
+│   ├── agent-md-redesign-20261124.md # 芭迪常驻注入四层架构定稿
+│   ├── a2a-redesign-2026-11-23.md    # 八轮辩论全记录
+│   └── ...
+└── scripts/                  # 5 个协议承载脚本
+    ├── badi-wait.py          # sleep 等待主链路（30s 群轮询 + STALL 梯子）
+    ├── agent-send.sh         # 卡片下发（串行闸门 SEND_UNCLOSED）
+    ├── hermes-post-task.sh   # 任务验收闭环（verify 材料 + close）
+    ├── collab_board.py       # 看板（事件流 + 派生视图 rebuild）
+    └── agent-conv.sh         # conv 文件收发
 ```
 
-**消息流转**：
+## 定位说明
 
-1. 用户 @Hermes 下达任务
-2. Hermes @WorkBuddy 发送 `[任务] 描述`
-3. WorkBuddy 收到后自动执行，写入 conv 文件，更新 status.json，发卡片通知
-4. Hermes 通过 SSH 读取 status.json 和 conv 文件内容
-5. Hermes 将结果汇报用户
+本仓库发布的是 **Hermes 端协议参考实现**。芭迪（WorkBuddy）侧的 counterpart 文件（她自己的 skill、agent.md、ps1 脚本）在用户自己的域内，**不随本仓库发布**——外部使用者需要自行实现芭迪侧的对应物（卡片响应、conv 写盘、SSH 推回、pending-op 哨兵），协议约定见 `references/protocol-v1.8.md`。
 
-**消息前缀**：
+## 快速开始
 
-| 前缀 | 用途 |
-|------|------|
-| `[任务]` | 派任务给 WorkBuddy 执行 |
-| `[讨论]` | 非执行型讨论 |
-| `[辩论]` | 对 WorkBuddy 结果有异议，走 R1→R2→R3 辩论 |
-| `[协议调整]` | 更新协作规则 |
+```bash
+# 1. 派发任务（串行闸门：同任务未闭环会被 SEND_UNCLOSED 拦截）
+bash scripts/agent-send.sh <task-id> --step 1 "任务描述"
 
-## WorkBuddy 斜杠命令
+# 2. 睡眠等待（同 turn 阻塞，30s 轮询群消息，卡片唤醒退出）
+python3 scripts/badi-wait.py <task-id> --total 420
 
-| 命令 | 功能 |
-|------|------|
-| `/hermes:status` | 查看当前协作状态 |
-| `/hermes:stop` | 中断当前任务并记录断点 |
-| `/hermes:priority` | 保存进度，插队处理新任务 |
+# 3. 醒后：读 conv → 校验 → 验收 → 看板核销
+python3 scripts/collab_board.py update <task-id> closed --conclusion result_pass
+python3 scripts/collab_board.py rebuild   # update 后必须 rebuild 才对 wait 生效
+```
 
-## 部署验证
+> 脚本内的群 chat_id、App ID 等均为占位符（见 `references/credentials.md`），使用前替换为你自己环境的真实值。发布版脚本为参数化模板，未经外部环境实测。
 
-1. 飞书群中 @Hermes 发送：`[任务] 测试协作通道`
-2. 检查 WorkBuddy 侧是否收到消息并自动创建 `conv_测试协作通道_YYYYMMDD.md`
-3. 检查 `status.json` 中 `current_task.status` 是否变为 `completed`
-4. Hermes 侧 SSH 执行 `cat status.json` 确认状态灯可见
-5. Hermes 侧 SSH 执行 `cat conv_测试协作通道_YYYYMMDD.md` 确认内容完整
-6. 发送 `[辩论] conv_测试协作通道_YYYYMMDD.md` 测试辩论流程
+## 使用条件
 
-## 文件说明
-
-| 文件/目录 | 说明 |
-|-----------|------|
-| `hermes/SKILL.md` | Hermes 端操作流程总控（反面案例 + 规则汇总） |
-| `hermes/references/` | 参考文档（写作工作流、响应时间观测、v3.0 架构） |
-| `hermes/scripts/` | 自动化脚本（SSH 监控、回复轮询、conv 增量读取） |
-| `workbuddy/MEMORY.md` | WorkBuddy 协作规则（部署到 `.workbuddy/memory/`） |
-| `workbuddy/commands/` | 斜杠命令（部署到 `.codebuddy/commands/hermes/`） |
-| `workbuddy/hermes_collab/` | 协作工作区（部署到 `{PROJECT_DIR}/hermes_collab/`） |
-| `.env.template` | 环境变量模板（仅 Hermes 侧使用） |
+- 云端：Hermes Agent 环境 + 飞书自建 App（群消息收发权限）
+- 本地：WorkBuddy（或自行实现的芭迪侧 counterpart）+ Tailscale + SSH
+- 相关仓库：[legal-tools](https://github.com/moyupeng0422/legal-tools)
 
 ## 许可证
 
-MIT License - 详见 [LICENSE](LICENSE)
+MIT — 见仓库根 [LICENSE](../LICENSE)

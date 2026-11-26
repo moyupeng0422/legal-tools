@@ -91,7 +91,7 @@ Hermes 的 `delegate_task` 已支持 `acp_command`（如 `copilot --acp --stdio`
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
-| `ANTHROPIC_BASE_URL` | `https://<API_服务商域名>/api/anthropic` | 智谱提供 **Anthropic 协议兼容** 端点 |
+| `ANTHROPIC_BASE_URL` | `<api-endpoint>` | 智谱提供 **Anthropic 协议兼容** 端点 |
 | `ANTHROPIC_AUTH_TOKEN` | 智谱 API Key | 认证凭据 |
 | `ANTHROPIC_MODEL` | `glm-5-turbo` | 默认模型 |
 | 配置位置 | `~/.claude/settings.json` → `env` 字段 | CC 启动时注入，非系统环境变量 |
@@ -112,7 +112,7 @@ npm install -g @agentclientprotocol/claude-agent-acp
 ### 启动方式
 
 ```bash
-set ANTHROPIC_BASE_URL=https://<API_服务商域名>/api/anthropic
+set ANTHROPIC_BASE_URL=<api-endpoint>
 set ANTHROPIC_AUTH_TOKEN=<智谱API Key>
 claude-agent-acp
 ```
@@ -311,7 +311,7 @@ Hermes 侧 Python 脚本 `~/.hermes/scripts/acp_test.py` 测试结果：**全链
 ### 远程命令
 
 ```bash
-ssh local-win "set ANTHROPIC_BASE_URL=https://<API_服务商域名>/api/anthropic && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
+ssh local-win "set ANTHROPIC_BASE_URL=<api-endpoint> && set ANTHROPIC_AUTH_TOKEN=<key> && set ANTHROPIC_MODEL=glm-5-turbo && set ANTHROPIC_DEFAULT_SONNET_MODEL=glm-5-turbo && claude-agent-acp"
 ```
 
 ### 测试结果

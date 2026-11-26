@@ -86,7 +86,7 @@
 
 ### CC settings.json
 
-路径：`~/.claude/settings.json`（Windows: `<windows-userhome>\.claude\settings.json`）
+路径：`~/.claude/settings.json`（Windows: `C:\Users\<windows-username>\.claude\settings.json`）
 
 ```json
 {

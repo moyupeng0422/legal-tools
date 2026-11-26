@@ -130,6 +130,28 @@ tmux paste-buffer -t claude-session -d
 
 compact 后 CLAUDE.md 完整保留，进度文件作为 CC 的参考。
 
+## 6b. Context 100% 彻底僵死（2026-06-29 实战）
+
+**场景**：CC context 到达 100% 后完全无法处理任何指令——即使通过 BTab 切到 plan mode 并 Enter 提交 `/compact`，CC 也不执行。
+
+**症状链**：
+1. context 到达 97-100%，CC 行为变迟缓
+2. Hermes 通过 BTab 绕过 accept edits 吞消息问题，切换到 plan mode
+3. Enter 提交 `/compact`——指令出现在输入框但 CC 不处理
+4. capture-pane 显示输入框中有 `/compact` 但无 thinking emoji，无响应
+5. 无论按 Enter、Escape、BTab 还是用 send-keys 发新指令——全部无响应
+
+**与 §6 的区别**：§6 的上下文耗尽场景下 `/compact` 仍能正常触发（只是需要补进度）；§6b 是 context 达到 100% 后 CC 彻底僵死，任何指令都无法处理。
+
+**恢复（唯一路径）**：
+- **用户必须在 CC 本地 UI 终端手动输入 `/compact` 并回车**
+- Hermes 通过 tmux 发送的所有按键均无效（100% context 下 CC 的输入处理完全停滞）
+- 不建议用 `--resume` 恢复旧 session（会加载膨胀的 context 再次撞 100% limit）
+
+**预防**：
+- context 超 90% 时应主动发起 compact（见 SKILL.md 步骤 5）
+- compact 完成后**必须确认 BTab 切回 accept edits 模式**（否则后续 send-keys 被 accept edits 吞）
+
 ## 7. 事实校验未通过
 
 CC 的结论与 Hermes 的观察不一致（详见 monitoring-debate.md 事实校验节）。
@@ -435,7 +457,7 @@ print(f"Keep entries: {keep}, Exclude entries: {exclude}")
 
 ### SSH PowerShell `$_` 变量 corruption 注意事项
 
-通过 SSH 发送 PowerShell 命令时，`$_`（PowerShell 管道变量）会被 SSH 的 shell 解释为 `<云端用户目录>`（本地工作目录）。这导致任何使用 `$_.Line`、`$_.Group` 等的 PowerShell 命令输出错误。
+通过 SSH 发送 PowerShell 命令时，`$_`（PowerShell 管道变量）会被 SSH 的 shell 解释为 `/home/ubuntu`（本地工作目录）。这导致任何使用 `$_.Line`、`$_.Group` 等的 PowerShell 命令输出错误。
 
 **变通方案**（按可靠性排序）：
 1. **用 Python 代替 PowerShell**：`ssh local-win "python -u -c \"...\""` — 最可靠
@@ -482,9 +504,9 @@ Esc to cancel · Tab to amend
 1. **SSH 直接执行**（最可靠）：
    ```bash
    # Windows 用 PowerShell（rm 不可用）
-   ssh -p <SSH_端口> <Windows_用户名>@host 'powershell -Command "Remove-Item -Force \"path1\",\"path2\""'
+   ssh -p 2222 <windows-username>@host 'powershell -Command "Remove-Item -Force \"path1\",\"path2\""'
    # mv 操作
-   ssh -p <SSH_端口> <Windows_用户名>@host 'powershell -Command "Move-Item \"src\" \"dest\""'
+   ssh -p 2222 <windows-username>@host 'powershell -Command "Move-Item \"src\" \"dest\""'
    ```
 
 2. **让 CC 用 Write 工具替代 mv/rm**：

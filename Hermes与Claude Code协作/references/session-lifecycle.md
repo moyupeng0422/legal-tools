@@ -163,6 +163,8 @@ EOF
 
 # 粘贴到 session
 tmux paste-buffer -t claude-session -d
+# ⚠️ paste-buffer 只将内容粘贴到输入框，不会自动提交！必须手动按 Enter
+tmux send-keys -t claude-session Enter
 ```
 
 **通过 SSH 远程发送：**
@@ -184,9 +186,12 @@ ssh -p {port} {user}@{host} "tmux paste-buffer -t claude-session -d"
 |------|----------|------|------|
 | ① | `✶`/`✽`/`✻`/`✢`/`·` + 文字 | CC 正在 thinking | 等待完成 |
 | ① | 无 emoji | CC 空闲 | 可发指令（选择合适的发送方式） |
-| ③ | `⏵⏵ accept edits on` | accept edits 模式 | 用短 send-keys 不用 paste-buffer；可 BTab 切 plan mode |
-| ③ | `⏸ plan mode on` | plan mode | 用短 send-keys 不用 paste-buffer。收到 TASK 后 CC 必须先回 ACK 再出 plan |
+| ③ | `⏵⏵ accept edits on` | accept edits 模式 | 用短 send-keys 不用 paste-buffer；可 BTab 切 plan mode。**⚠️ 此模式下排队的斜杠命令（如 `/compact`）可能被吞掉不处理** |
+| ③ | `⏵⏵ auto mode on` | auto 模式 | CC 自动决定是否需要确认，短 send-keys 可用 |
+| ③ | `⏸ plan mode on` | plan mode | 用短 send-keys 不用 paste-buffer。收到 TASK 后 CC 必须先回 ACK 再出 plan。**⚠️ compact 后若留在此模式，CC 每次 Edit 需审批，交互成本极高** |
 | ③ | 无标记 | normal mode | 正常发送，可用 paste-buffer（≤500字符） |
+
+**BTab 模式切换循环顺序（2026-06-30 确认）：** normal → auto → plan → accept edits → normal（4 档循环）。每次 BTab 切到下一档。**不要凭记忆数次数——capture-pane 看底部状态栏确认当前位置再决定按几下 BTab。**
 | — | `Enter to select` | CC interview 表单 | 数字+Enter 两拍法选择 |
 | — | `Would you like to proceed?` | CC 等待 plan 执行确认 | 审查方案后选择 1/2/3 |
 | — | `<!-- PAUSE:... -->` | CC 需要决策 | 按 PAUSE 四种响应处理 |
@@ -214,12 +219,26 @@ accept edits 模式下 paste-buffer 长消息会被截断（只收到最后一�
 
 **方式 A：切换到 plan mode（推荐）**
 ```bash
-# Shift+Tab 循环模式：accept edits → plan mode
+# BTab 循环模式：accept edits → normal → auto → plan
+# 不确定当前位置时，capture-pane 看底部状态栏确认后再按
 tmux send-keys -t claude-session BTab
 sleep 2 && tmux capture-pane -t claude-session -p -S -3
 # 确认出现 "⏸ plan mode on"
 # plan mode 下可用短 send-keys，但 paste-buffer 仍可能被截断
 ```
+
+**⚠️ compact 后恢复完整流程（2026-06-30 用户纠正）：**
+```bash
+# 1. compact 成功后，capture-pane 确认 "Compacted" 出现
+# 2. 如果当前在 plan mode（因绕过 accept edits 吞消息而切过来的），
+#    必须切回 accept edits：
+tmux send-keys -t claude-session BTab  # plan → accept edits
+sleep 2 && tmux capture-pane -t claude-session -p -S -3
+# 确认看到 "⏵⏵ accept edits on"
+# 3. CC compact 后不会自动继续工作——必须发送恢复指令：
+tmux send-keys -t claude-session '继续' Enter
+```
+**跳过步骤 2/3 的后果**：留在 plan mode → CC 每次 Edit 都需审批；不发"继续"→ CC 停在空闲态不干活。
 
 **方式 B：退出重启**
 ```bash
@@ -236,8 +255,8 @@ tmux send-keys -t claude-session 'claude' Enter
 cat > /tmp/cc_msg.txt << 'EOF'
 ...长消息内容...
 EOF
-scp /tmp/cc_msg.txt local-win:"/Users/<Windows_用户名>/cc_msg.txt"
-tmux send-keys -t claude-session '读取 C:\\Users\\<Windows_用户名>\\cc_msg.txt，...' Enter
+scp /tmp/cc_msg.txt local-win:"/Users/<windows-username>/cc_msg.txt"
+tmux send-keys -t claude-session '读取 C:\Users\<windows-username>\\cc_msg.txt，...' Enter
 # 短 send-keys 不受 accept edits 影响，可用于触发读文件指令
 ```
 
@@ -282,7 +301,7 @@ CC 的 interview 可能是多步骤的——选择初始选项后，CC 会追问
 ```
 ←  [×] 优先确认  [×] 端口情况  √ Submit  →
 
-方案中有几个待确认点，巽饕先看哪个？
+方案中有几个待确认点，<主人昵称>先看哪个？
 
 > 1. 先处理当前 legal 孤儿
   2. 先讨论方案设计
@@ -337,7 +356,7 @@ Ready to submit your answers?
 
 ```bash
 # 从 Windows 传到云端（在 tmux / CC 中执行）
-cd "D:/claude vscode" && tar czf - health-management-skill | ssh -p <SSH_端口> ubuntu@<云端_Tailscale_IP> "cd <云端用户目录>/.hermes/profiles/family/skills/family/health-management && tar xzf -"
+cd "D:/<projects-root>" && tar czf - health-management-skill | ssh -p 2222 ubuntu@<cloud-tailscale-ip> "cd /home/ubuntu/.hermes/profiles/family/skills/family/health-management && tar xzf -"
 ```
 
 **优势**：
@@ -354,7 +373,7 @@ cd /dest/path && mv subdir/* . && rmdir subdir
 
 ```bash
 # 可能失败——空格导致路径解析问题
-scp -P <SSH_端口> -r "<Windows_用户名>@host:D:\\claude vscode\\project" .
+scp -P 2222 -r "<windows-username>@host:D:\<projects-root>\\project" .
 ```
 
 SCP 在以下场景易出错：源路径含空格、嵌套目录层数深、目标目录不存在。`tar + SSH` 管道是更稳定的替代方案。\n\n
@@ -390,7 +409,7 @@ sleep 3
 tmux capture-pane -t claude-session -p -S -3
 
 # 3. cd 到项目目录 → claude 启动新对话 → HERMES-ACTIVATE → /rename
-tmux send-keys -t claude-session 'cd /d "D:\claude vscode"' Enter
+tmux send-keys -t claude-session 'cd /d "D:\<projects-root>"' Enter
 sleep 2
 tmux send-keys -t claude-session 'claude --model glm-5-turbo' Enter
 sleep 8
@@ -433,6 +452,8 @@ tmux load-buffer - <<'EOF'
 完成后运行测试验证。
 EOF
 tmux paste-buffer -t claude-session -d
+# ⚠️ paste-buffer 只粘贴到输入框，不会自动提交！必须手动按 Enter
+tmux send-keys -t claude-session Enter
 
 # 5. 记录到 task_map（任务名 + CC 会话名）
 
