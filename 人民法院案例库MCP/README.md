@@ -48,6 +48,8 @@ playwright install msedge   # 自动登录需要（首次）
 
 依赖：mcp、aiohttp、httpx、pydantic、python-dotenv、playwright
 
+> **版本约束**：依赖 `mcp[cli]>=1.0.0,<2`（requirements.txt 已封顶）。本项目基于 MCP Python SDK **1.x** API（`from mcp.server.fastmcp import FastMCP`）；mcp 2.x 已将 FastMCP 改名为 `MCPServer`，与本项目代码不兼容，请勿手动升级到 2.x。
+
 ### 2. 配置 .env
 
 ```bash

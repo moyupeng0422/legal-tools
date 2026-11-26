@@ -40,6 +40,8 @@ pip install -r requirements.txt
 
 依赖：mcp、httpx、pydantic、python-dotenv
 
+> **版本约束**：依赖 `mcp[cli]>=1.0.0,<2`（requirements.txt 已封顶）。本项目基于 MCP Python SDK **1.x** API（`from mcp.server.fastmcp import FastMCP`）；mcp 2.x 已将 FastMCP 改名为 `MCPServer`，与本项目代码不兼容，请勿手动升级到 2.x。
+
 **完整导出功能额外依赖**：[pandoc](https://pandoc.org/installing.html)（docx → markdown 转换）。未安装 pandoc 时导出自动降级为骨架模式（仅目录树标题）。
 
 ### 2. 启动服务
