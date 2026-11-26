@@ -12,18 +12,19 @@ Hermes（云端）→ 飞书群卡片 → WorkBuddy（本地 Windows）的**单�
 
 ## 版本演进（为什么是彻底重写）
 
-本目录此前发布的是 v3.0（watch/audit/A2A 三件套 + WorkBuddy 侧斜杠命令架构）。此后本地实际演进经历了 v3.x 多轮迭代、v1.5-v1.7 中间协议，最终在 v1.8 完成架构级重构（零机械架构）并更名为 multiagent-feishu-scripting，本次发布以 v2.1.0（协议 v1.8）整体替换旧版。
+已发布的 v3.0 架构 = 飞书 REST API 通信 + SSH status.json 轮询双通道 + WorkBuddy 侧斜杠命令。此后本地实际演进经历了 v3.x 多轮迭代、v1.5-v1.7 中间协议，v1.8 经八轮辩论（R1→R8，全记录见 `references/a2a-redesign-2026-11-23.md`）完成架构级重构（零机械架构）并更名为 multiagent-feishu-scripting，本次发布以 v2.1.0（协议 v1.8）整体替换旧版。
 
-**v3.0 → v1.8 的核心架构变化**：
+**v3.0（已发布版）→ v1.8 的核心架构变化**：
 
-| v3.0 旧机制 | 问题（实证） | v1.8 替代 |
+| v3.0 旧机制（已发布版） | 问题（实证） | v1.8 替代 |
 |--------|------|----------|
-| watch 文件监听（board_watch/badi_watch 等 7 个脚本） | 投递层故障（飞书 bot 间消息不投递），watch 无岗可守 | **sleep 等待主链路**：`badi-wait.py` 同 turn 阻塞轮询群消息 + 卡片唤醒 |
-| A2A POST 直连 | audit 源死，砍除 | 群消息 API 复核 |
-| 卡片即内容 | 卡片被 8000 字符拆分、正文 API 不可读 | **conv 内容权威**：conv 文件是唯一事实源，卡片只是唤醒信号 |
-| 看板自动派生状态 | rebuild 重派生已收口任务 | **看板状态权威**：collab_board.py 显式 update + rebuild |
-| @ 对方 Bot 兜底 | bot 间消息不投递的平台实证 | **禁 @ 铁律**：跨 Bot 通道设计先判死互@、走文件落盘 |
+| status.json 状态灯轮询（`workbuddy_monitor.py`，SSH 每 30-60s） | 状态文件可过期、SSH 断连即失明，无投递保障 | **sleep 等待主链路**：`badi-wait.py` 同 turn 阻塞轮询群消息 + 卡片唤醒 |
+| 飞书 API 轮询备用通道（`workbuddy_poll.py`） | bot 间消息不投递的平台实证，API 轮询抓不到对方消息 | 群消息 API 复核（sender 白名单 + ts 游标） |
+| 卡片承载内容 + `详见: conv_xxx` 引用 | 卡片正文 API 不可读、超 8000 字符被平台拆分 | **conv 内容权威**：conv 文件是唯一事实源，卡片只是唤醒信号 |
+| @ 对方 Bot 兜底 | bot 间 @ 消息不投递的平台实证 | **禁 @ 铁律**：跨 Bot 通道设计先判死互@、走文件落盘 |
 | WorkBuddy 侧斜杠命令（/status /stop /priority） | 随 v3 架构退役 | 芭迪侧 skill 承载（见 workbuddy-side/） |
+
+> 注：本地演进史中 v1.5-v1.7 曾引入 watch/audit/A2A 机制并最终在 v1.8 退役，该段从未进入已发布版本，此处不展开（详见 `references/a2a-redesign-2026-11-23.md`）。
 
 ### 核心铁律
 
